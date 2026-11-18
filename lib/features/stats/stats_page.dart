@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +27,15 @@ class _StatsPageState extends State<StatsPage> {
   int _pageOffset = 0;
   DateTime? _selectedDay;
   DateTime? _selectedMonth;
+  Timer? _holdTimer;
+  int _holdDirection = 0;
+  int _holdCount = 0;
+
+  @override
+  void dispose() {
+    _stopHold();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +96,7 @@ class _StatsPageState extends State<StatsPage> {
               ],
               selected: {_range},
               onSelectionChanged: (value) {
+                _stopHold();
                 setState(() {
                   _range = value.first;
                   _pageOffset = 0;
@@ -135,10 +147,13 @@ class _StatsPageState extends State<StatsPage> {
                   onHorizontalDragEnd: _handleSwipe,
                   child: Row(
                     children: [
-                      IconButton(
+                      _StatsPeriodArrow(
+                        icon: Icons.chevron_left,
                         tooltip: '上一页',
-                        onPressed: () => _changePeriod(-1),
-                        icon: const Icon(Icons.chevron_left),
+                        enabled: true,
+                        onTap: () => _changePeriod(-1),
+                        onHoldStart: () => _startHold(-1),
+                        onHoldEnd: _stopHold,
                       ),
                       Expanded(
                         child: Column(
@@ -155,10 +170,13 @@ class _StatsPageState extends State<StatsPage> {
                           ],
                         ),
                       ),
-                      IconButton(
+                      _StatsPeriodArrow(
+                        icon: Icons.chevron_right,
                         tooltip: '下一页',
-                        onPressed: canGoNext ? () => _changePeriod(1) : null,
-                        icon: const Icon(Icons.chevron_right),
+                        enabled: canGoNext,
+                        onTap: () => _changePeriod(1),
+                        onHoldStart: () => _startHold(1),
+                        onHoldEnd: _stopHold,
                       ),
                     ],
                   ),
@@ -378,6 +396,36 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 
+  void _startHold(int direction) {
+    if (direction > 0 && _pageOffset >= 0) return;
+    _stopHold();
+    _holdDirection = direction;
+    _holdCount = 0;
+    _changePeriod(direction);
+    _scheduleHoldTick();
+  }
+
+  void _scheduleHoldTick() {
+    final delay = (300 - _holdCount * 35).clamp(70, 300);
+    _holdTimer = Timer(Duration(milliseconds: delay), () {
+      if (!mounted) return;
+      if (_holdDirection > 0 && _pageOffset >= 0) {
+        _stopHold();
+        return;
+      }
+      _holdCount++;
+      _changePeriod(_holdDirection);
+      _scheduleHoldTick();
+    });
+  }
+
+  void _stopHold() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _holdDirection = 0;
+    _holdCount = 0;
+  }
+
   void _handleSwipe(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
     if (velocity < -200) {
@@ -569,6 +617,59 @@ class _Buckets {
 
   final List<_Bucket> items;
   final int maxValue;
+}
+
+class _StatsPeriodArrow extends StatelessWidget {
+  const _StatsPeriodArrow({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onTap,
+    required this.onHoldStart,
+    required this.onHoldEnd,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onTap;
+  final VoidCallback onHoldStart;
+  final VoidCallback onHoldEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = enabled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant.withAlpha(90);
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        triggerMode: TooltipTriggerMode.manual,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? onTap : null,
+          onLongPressStart: enabled ? (_) => onHoldStart() : null,
+          onLongPressEnd: enabled ? (_) => onHoldEnd() : null,
+          onLongPressCancel: enabled ? onHoldEnd : null,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: enabled
+                  ? theme.colorScheme.primary.withAlpha(16)
+                  : Colors.transparent,
+            ),
+            child: Icon(icon, color: color, size: 23),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MetricCard extends StatelessWidget {

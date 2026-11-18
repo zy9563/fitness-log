@@ -607,6 +607,54 @@ class FitnessStore extends ChangeNotifier {
     await refreshAll();
   }
 
+  /// 按日期范围批量删除训练记录，开始和结束日期均包含在内。
+  ///
+  /// 健身房和动作预设不受影响。返回实际删除的动作、组记录行和组数。
+  Future<HistoryDeleteResult> deleteEntriesInRange(
+    DateTime rangeStart,
+    DateTime rangeEnd,
+  ) async {
+    final start = dateOnly(rangeStart);
+    final end = dateOnly(rangeEnd);
+    if (start.isAfter(end)) {
+      throw AppException('开始日期不能晚于结束日期');
+    }
+    final targets = _entries
+        .where(
+          (entry) => !entry.date.isBefore(start) && !entry.date.isAfter(end),
+        )
+        .toList();
+    if (targets.isEmpty) {
+      return const HistoryDeleteResult(
+        entryCount: 0,
+        setRowCount: 0,
+        groupCount: 0,
+      );
+    }
+
+    final entryIds = targets.map((entry) => entry.id).toSet();
+    final targetSets = _sets
+        .where((set) => entryIds.contains(set.entryId))
+        .toList();
+    final setIds = targetSets.map((set) => set.id).toList();
+    final groupCount = targetSets.fold<int>(
+      0,
+      (sum, set) => sum + set.groupCount,
+    );
+
+    await _isar.writeTxn(() async {
+      if (setIds.isNotEmpty) await _isar.trainingSets.deleteAll(setIds);
+      await _isar.trainingEntrys.deleteAll(entryIds.toList());
+    });
+    await refreshAll();
+
+    return HistoryDeleteResult(
+      entryCount: targets.length,
+      setRowCount: targetSets.length,
+      groupCount: groupCount,
+    );
+  }
+
   Future<TrainingSet> addSet({
     required TrainingEntry entry,
     required int groupCount,
@@ -759,4 +807,16 @@ class FitnessStore extends ChangeNotifier {
     });
     await refreshAll();
   }
+}
+
+class HistoryDeleteResult {
+  const HistoryDeleteResult({
+    required this.entryCount,
+    required this.setRowCount,
+    required this.groupCount,
+  });
+
+  final int entryCount;
+  final int setRowCount;
+  final int groupCount;
 }
