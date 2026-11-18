@@ -43,34 +43,38 @@ class StartupErrorApp extends StatelessWidget {
     return MaterialApp(
       title: '健身记录',
       debugShowCheckedModeBanner: false,
-      theme: buildDefaultLightTheme(),
+      theme: buildLedgerTheme(),
       home: Scaffold(
         body: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.storage_outlined,
-                  size: 54,
-                  color: Theme.of(context).colorScheme.error,
+                const Text(
+                  'BOOT / FAILED',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 2.4,
+                    color: kSafetyOrange,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                Container(width: 44, height: 2, color: kSafetyOrange),
+                const SizedBox(height: 18),
                 Text(
                   '本地数据库打开失败',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 const Text(
                   '请确认手机存储空间充足，然后重新打开 App。'
                   '如果问题持续，请不要卸载 App，先把手机连接到电脑保留数据。',
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 SelectableText(
                   message,
-                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

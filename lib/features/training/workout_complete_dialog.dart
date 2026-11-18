@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/date_x.dart';
 import '../../core/theme.dart';
 import '../../core/weight.dart';
+import '../../widgets/ledger.dart';
 
 enum WorkoutCompleteAction { stay, backToCalendar }
 
@@ -25,7 +26,7 @@ Future<WorkoutCompleteAction?> showWorkoutCompleteDialog({
   return showDialog<WorkoutCompleteAction>(
     context: context,
     barrierDismissible: false,
-    barrierColor: Colors.black.withAlpha(92),
+    barrierColor: kInk.withAlpha(225),
     builder: (_) =>
         WorkoutCompleteDialog(volumes: volumes, totalGroups: totalGroups),
   );
@@ -43,157 +44,110 @@ class WorkoutCompleteDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const titleColor = Color(0xFF1E2329);
-    const valueColor = Color(0xFF2F3540);
-    const labelColor = Color(0xFF8A919B);
-
-    return Dialog(
-      elevation: 0,
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 30, 24, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  label: '训练完成庆祝',
-                  child: const ExcludeSemantics(
-                    child: Text(
-                      '🎉',
-                      style: TextStyle(fontSize: 64, height: 1.1),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '训练完成',
-                  style: TextStyle(
-                    color: titleColor,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 26),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _SummaryMetric(
-                        label: '本次容量',
-                        value: formatWorkoutVolume(volumes),
-                        valueColor: valueColor,
-                        labelColor: labelColor,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _SummaryMetric(
-                        label: '组数',
-                        value: '$totalGroups',
-                        valueColor: valueColor,
-                        labelColor: labelColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  '每一次完成，都算数。',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: labelColor,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () =>
-                          Navigator.pop(context, WorkoutCompleteAction.stay),
-                      style: TextButton.styleFrom(
-                        foregroundColor: labelColor,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                      ),
-                      child: const Text('留在本页'),
-                    ),
-                    const SizedBox(width: 4),
-                    TextButton(
-                      onPressed: () => Navigator.pop(
-                        context,
-                        WorkoutCompleteAction.backToCalendar,
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: kPrimaryBlue,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                      ),
-                      child: const Text('回到日历'),
-                    ),
-                  ],
-                ),
-              ],
+    final theme = Theme.of(context);
+    return LedgerDialog(
+      eyebrow: 'SESSION CLOSED',
+      title: '训练完成',
+      subtitle: '今天的记录已经写进本机',
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, WorkoutCompleteAction.stay),
+          child: const Text('留在本页'),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.pop(context, WorkoutCompleteAction.backToCalendar),
+          child: const Text('回到日历'),
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 4),
+          _CompleteMetric(
+            label: '本次容量',
+            value: formatWorkoutVolume(volumes),
+            accent: true,
+          ),
+          _CompleteMetric(label: '完成组数', value: '$totalGroups', unit: '组'),
+          const SizedBox(height: 18),
+          const LedgerRule(),
+          const SizedBox(height: 14),
+          Text(
+            '每一次完成，都算数。',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: kSteel,
+              height: 1.6,
+              letterSpacing: 0.2,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _SummaryMetric extends StatelessWidget {
-  const _SummaryMetric({
+class _CompleteMetric extends StatelessWidget {
+  const _CompleteMetric({
     required this.label,
     required this.value,
-    required this.valueColor,
-    required this.labelColor,
+    this.unit,
+    this.accent = false,
   });
 
   final String label;
   final String value;
-  final Color valueColor;
-  final Color labelColor;
+  final String? unit;
+  final bool accent;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: labelColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: kLineSoft)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: 78,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: kSteel,
+                letterSpacing: 1,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: valueColor,
-            fontSize: 21,
-            fontWeight: FontWeight.w700,
-            height: 1.25,
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontSize: 28,
+                color: accent ? kSafetyOrange : kChalk,
+                height: 1.1,
+              ),
+            ),
           ),
-        ),
-      ],
+          if (unit != null) ...[
+            const SizedBox(width: 5),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                unit!,
+                style: const TextStyle(fontSize: 11, color: kSteel),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

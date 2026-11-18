@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/date_x.dart';
+import '../../core/theme.dart';
 import '../../data/fitness_store.dart';
-import '../../data/theme_store.dart';
 import '../../services/cache_service.dart';
 import '../../widgets/app_widgets.dart';
-import '../../widgets/edge_fade_list_view.dart';
+import '../../widgets/ledger.dart';
 import '../backup/export_page.dart';
 import '../backup/import_page.dart';
 import '../gyms/gym_list_page.dart';
-import '../settings/theme_settings_page.dart';
 
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
@@ -18,251 +17,322 @@ class MorePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FitnessStore>();
-    final themeStore = context.watch<ThemeStore>();
     final latestBackup = store.backups.isEmpty ? null : store.backups.first;
-    final mode = themeStore.mode;
+    final theme = Theme.of(context);
 
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text('我的')),
-      body: EdgeFadeListView(
-        padding: EdgeInsets.fromLTRB(16, topInset, 16, 120),
-        topFadeHeight: topInset + 16,
-        bottomFadeHeight: 130,
-        children: [
-          AppSectionCard(
-            elevated: true,
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.fitness_center,
-                    color: Colors.white,
-                    size: 30,
-                  ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 128),
+          children: [
+            LedgerPageHeader(
+              title: '我的',
+              subtitle: '本机档案 · 数据不出设备',
+              trailing: Text(
+                'v2.0.0',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: kSteel,
+                  letterSpacing: 1.5,
                 ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '健身记录',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '当天练 · 当天记 · 纯离线',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text('v1.6.3', style: Theme.of(context).textTheme.labelSmall),
-              ],
+              ),
             ),
-          ),
-          const AppInfoBanner(
-            icon: Icons.warning_amber_rounded,
-            text:
+            const SizedBox(height: 18),
+            _IdentityBlock(gymCount: store.gyms.length),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: kSafetyOrange, width: 2),
+                  top: BorderSide(color: kLineSoft),
+                  bottom: BorderSide(color: kLineSoft),
+                ),
+              ),
+              child: Text(
                 '卸载 App 会清除本机全部数据。换手机、刷机或清理存储前，'
-                '请先导出 Excel 备份，并把文件转存到手机之外。',
-          ),
-          const SizedBox(height: 12),
-          SectionTitle('主题'),
-          AppSectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '主题模式',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                '先导出 Excel 备份，并把文件转存到手机之外。',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: kSteel,
+                  height: 1.55,
                 ),
-                const SizedBox(height: 8),
-                SegmentedButton<AppThemeMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: AppThemeMode.light,
-                      label: Text('默认浅色'),
-                      icon: Icon(Icons.light_mode_outlined),
-                    ),
-                    ButtonSegment(
-                      value: AppThemeMode.system,
-                      label: Text('跟随系统'),
-                      icon: Icon(Icons.brightness_auto_outlined),
-                    ),
-                    ButtonSegment(
-                      value: AppThemeMode.custom,
-                      label: Text('自定义'),
-                      icon: Icon(Icons.palette_outlined),
-                    ),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (value) {
-                    themeStore.setMode(value.first);
-                  },
-                ),
-                const SizedBox(height: 10),
-                if (mode == AppThemeMode.custom)
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const ThemeSettingsPage(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.tune),
-                      label: const Text('自定义颜色 / 背景图片'),
-                    ),
-                  )
-                else
+              ),
+            ),
+            const SizedBox(height: 22),
+            const SectionTitle('数据', subtitle: '训练、导入与备份'),
+            const SizedBox(height: 6),
+            const LedgerRule(),
+            _LedgerActionRow(
+              index: '01',
+              title: '健身房与动作预设',
+              subtitle:
+                  '${store.gyms.length} 个健身房 · ${store.presets.length} 个预设',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(builder: (_) => const GymListPage()),
+                );
+              },
+            ),
+            _LedgerActionRow(
+              index: '02',
+              title: '导入 Excel',
+              subtitle: '9 列记录表或全量备份',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(builder: (_) => const ImportPage()),
+                );
+              },
+            ),
+            _LedgerActionRow(
+              index: '03',
+              title: '导出备份',
+              subtitle: '4 个工作表 · 写入下载目录',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(builder: (_) => const ExportPage()),
+                );
+              },
+            ),
+            _LedgerActionRow(
+              index: '04',
+              title: '最近导出记录',
+              subtitle: latestBackup == null
+                  ? '暂无导出记录'
+                  : '${latestBackup.fileName}\n${formatDateTime(latestBackup.exportedAt)}',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(builder: (_) => const ExportPage()),
+                );
+              },
+            ),
+            const SizedBox(height: 18),
+            const _DataMaintenanceCard(),
+            const SizedBox(height: 24),
+            const SectionTitle('换机迁移', subtitle: '四步搬走全部记录'),
+            const SizedBox(height: 6),
+            const LedgerRule(),
+            const _NumberedNote(number: '01', text: '旧手机：我的 → 导出备份。'),
+            const _NumberedNote(number: '02', text: '把 xlsx 通过分享、数据线或网盘传到新手机。'),
+            const _NumberedNote(
+              number: '03',
+              text: '新手机安装 App → 我的 → 导入 Excel。',
+            ),
+            const _NumberedNote(
+              number: '04',
+              text: '全量备份会恢复所有健身房；普通 9 列文件只导入所选健身房。',
+            ),
+            const SizedBox(height: 24),
+            const SectionTitle('关于', subtitle: 'IRON LEDGER / 铁册'),
+            const SizedBox(height: 6),
+            const LedgerRule(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    mode == AppThemeMode.light
-                        ? '默认浅色：背景 #F7FAFF，卡片白色，主色 #4285F4。'
-                        : '跟随系统：系统切换暗色时，全套文字、卡片和背景自动适配。',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    '健身记录',
+                    style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '完全离线 · 无需账号 · 无网络请求 · 无付费功能',
+                    style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '数据存储：Isar 本地数据库\n'
+                    '导出格式：.xlsx（4 个工作表）\n'
+                    '版本：2.0.0 · build 11',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: kSteel,
+                      height: 1.7,
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
-          SectionTitle('数据'),
-          AppSectionCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.storefront_outlined),
-                  title: const Text('健身房与动作预设'),
-                  subtitle: Text(
-                    '${store.gyms.length} 个健身房 · ${store.presets.length} 个预设',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => const GymListPage(),
-                      ),
-                    );
-                  },
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IdentityBlock extends StatelessWidget {
+  const _IdentityBlock({required this.gymCount});
+
+  final int gymCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      decoration: const BoxDecoration(
+        color: kCarbon,
+        border: Border(
+          top: BorderSide(color: kSafetyOrange, width: 1.5),
+          bottom: BorderSide(color: kLine),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'IRON LEDGER',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: kSafetyOrange,
+                  letterSpacing: 2.4,
+                  fontWeight: FontWeight.w700,
                 ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
-                  leading: const Icon(Icons.upload_file_outlined),
-                  title: const Text('导入 Excel'),
-                  subtitle: const Text('先选择健身房，再导入 9 列记录表'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ImportPage(),
-                      ),
-                    );
-                  },
+              ),
+              const Spacer(),
+              Text(
+                'OFFLINE',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: kSteel,
+                  letterSpacing: 1.6,
                 ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
-                  leading: const Icon(Icons.backup_outlined),
-                  title: const Text('导出备份'),
-                  subtitle: const Text('全量多 sheet、下载目录、系统分享'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ExportPage(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 1, indent: 56),
-                ListTile(
-                  leading: const Icon(Icons.history),
-                  title: const Text('最近导出记录'),
-                  subtitle: Text(
-                    latestBackup == null
-                        ? '暂无导出记录'
-                        : '${latestBackup.fileName} · ${formatDateTime(latestBackup.exportedAt)}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ExportPage(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
-          const _DataMaintenanceCard(),
-          SectionTitle('换机迁移'),
-          AppSectionCard(
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('1. 旧手机：我的 → 导出备份。'),
-                SizedBox(height: 3),
-                Text('2. 把 xlsx 通过分享、数据线或网盘传到新手机。'),
-                SizedBox(height: 3),
-                Text('3. 新手机安装 App → 我的 → 导入 Excel。'),
-                SizedBox(height: 3),
-                Text('4. 全量备份会恢复所有健身房；普通 9 列文件只导入所选健身房。'),
-              ],
+          Text(
+            '健身记录',
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontSize: 34,
+              color: kChalk,
             ),
           ),
-          SectionTitle('关于'),
-          AppSectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '健身记录',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          const SizedBox(height: 6),
+          Text(
+            '当天练 · 当天记 · $gymCount 家场馆 · 全部留在本机',
+            style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LedgerActionRow extends StatelessWidget {
+  const _LedgerActionRow({
+    required this.index,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String index;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: kLineSoft)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 30,
+              child: Text(
+                index,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: kSafetyOrange,
+                  letterSpacing: 1,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  '完全离线 · 无需账号 · 无网络请求 · 无付费功能',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '数据存储：Isar 本地数据库\n'
-                  '导出格式：.xlsx（4 个工作表）\n'
-                  '主题与训练记录全部保存在本机',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    height: 1.6,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontSize: 15,
+                      color: kChalk,
+                    ),
                   ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: kSteel,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                '›',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: kSteel,
+                  fontWeight: FontWeight.w300,
                 ),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NumberedNote extends StatelessWidget {
+  const _NumberedNote({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: kLineSoft)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 30,
+            child: Text(
+              number,
+              style: const TextStyle(
+                fontSize: 10,
+                color: kSafetyOrange,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: kSteel, height: 1.55),
             ),
           ),
         ],
@@ -416,74 +486,79 @@ class _DataMaintenanceCardState extends State<_DataMaintenanceCard> {
       0,
       (sum, set) => sum + set.groupCount,
     );
-    final errorColor = theme.colorScheme.error;
 
-    return AppSectionCard(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+      decoration: const BoxDecoration(
+        color: kCarbon,
+        border: Border(
+          top: BorderSide(color: kSafetyOrange, width: 1.5),
+          bottom: BorderSide(color: kLine),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(Icons.tune, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '数据维护',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: theme.textTheme.titleMedium?.copyWith(fontSize: 17),
                 ),
               ),
               Text(
                 '共 $totalEntries 个动作 · $totalGroups 组',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                style: theme.textTheme.labelSmall?.copyWith(color: kSteel),
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 7),
           Text(
             '按日期范围删除历史计划；健身房、动作预设和其他日期的记录会保留。',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.45,
+              color: kSteel,
+              height: 1.5,
             ),
           ),
-          const SizedBox(height: 11),
-          OutlinedButton.icon(
+          const SizedBox(height: 12),
+          OutlinedButton(
             onPressed: _busy || totalEntries == 0
                 ? null
                 : _deleteHistoryInRange,
             style: OutlinedButton.styleFrom(
-              foregroundColor: errorColor,
+              foregroundColor: kDangerRed,
+              disabledForegroundColor: kSteel.withAlpha(120),
               side: BorderSide(
-                color: totalEntries == 0
-                    ? theme.colorScheme.outlineVariant
-                    : errorColor.withAlpha(100),
+                color: totalEntries == 0 ? kLine : kDangerRed.withAlpha(120),
+              ),
+              minimumSize: const Size.fromHeight(42),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
               ),
             ),
-            icon: _deleting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.delete_sweep_outlined, size: 19),
-            label: Text(_deleting ? '正在删除...' : '批量删除历史计划'),
+            child: Text(
+              _deleting ? '正在删除...' : '批量删除历史计划',
+              style: const TextStyle(fontSize: 13, letterSpacing: 0.5),
+            ),
           ),
           const SizedBox(height: 8),
-          OutlinedButton.icon(
+          OutlinedButton(
             onPressed: _busy ? null : _clearCache,
-            icon: _clearing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.cleaning_services_outlined, size: 19),
-            label: Text(_clearing ? '正在清理...' : '清理缓存'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kChalk,
+              disabledForegroundColor: kSteel.withAlpha(120),
+              side: const BorderSide(color: kLine),
+              minimumSize: const Size.fromHeight(42),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+            child: Text(
+              _clearing ? '正在清理...' : '清理缓存',
+              style: const TextStyle(fontSize: 13, letterSpacing: 0.5),
+            ),
           ),
         ],
       ),

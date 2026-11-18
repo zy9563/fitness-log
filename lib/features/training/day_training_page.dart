@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/date_x.dart';
 import '../../core/exercise_group.dart';
+import '../../core/theme.dart';
 import '../../core/weight.dart';
 import '../../data/fitness_store.dart';
 import '../../data/models/exercise_preset.dart';
@@ -10,6 +11,7 @@ import '../../data/models/gym.dart';
 import '../../data/models/training_entry.dart';
 import '../../data/models/training_set.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/ledger.dart';
 import '../gyms/gym_dialogs.dart';
 import 'exercise_form_dialog.dart';
 import 'set_form_dialog.dart';
@@ -94,62 +96,138 @@ class _DayTrainingPageState extends State<DayTrainingPage> {
     final selected = await showModalBottomSheet<Gym>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      backgroundColor: kCarbon,
+      barrierColor: kInk.withAlpha(210),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       builder: (sheetContext) {
         return SafeArea(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 520),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 560),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: kSafetyOrange, width: 2)),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                  child: Text(
-                    '选择健身房',
-                    style: Theme.of(sheetContext).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '选择健身房',
+                          style: Theme.of(
+                            sheetContext,
+                          ).textTheme.headlineSmall?.copyWith(fontSize: 22),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        child: const Text('×'),
+                      ),
+                    ],
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: Text(
                     '这次训练记录会归到所选健身房。',
-                    style: Theme.of(sheetContext).textTheme.bodySmall,
+                    style: Theme.of(
+                      sheetContext,
+                    ).textTheme.labelSmall?.copyWith(color: kSteel),
                   ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.add_business_outlined),
-                  title: const Text('新建健身房'),
+                const LedgerRule(),
+                InkWell(
                   onTap: () async {
                     final gym = await _createGym(sheetContext);
                     if (gym != null && sheetContext.mounted) {
                       Navigator.pop(sheetContext, gym);
                     }
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: kLineSoft)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Text(
+                          '+',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: kSafetyOrange,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          '新建健身房',
+                          style: TextStyle(fontSize: 14, color: kChalk),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const Divider(height: 1),
                 Flexible(
-                  child: ListView.separated(
+                  child: ListView(
                     shrinkWrap: true,
-                    itemCount: store.gyms.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final gym = store.gyms[index];
-                      return ListTile(
-                        leading: const Icon(Icons.storefront),
-                        title: Text(gym.name),
-                        subtitle: gym.note.trim().isEmpty
-                            ? null
-                            : Text(
-                                gym.note.trim(),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                    children: [
+                      for (final gym in store.gyms)
+                        InkWell(
+                          onTap: () => Navigator.pop(sheetContext, gym),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 13,
+                            ),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: kLineSoft),
                               ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.pop(sheetContext, gym),
-                      );
-                    },
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        gym.name,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: kChalk,
+                                        ),
+                                      ),
+                                      if (gym.note.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          gym.note.trim(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: kSteel,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const Text(
+                                  '›',
+                                  style: TextStyle(fontSize: 20, color: kSteel),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -514,208 +592,254 @@ class _DayTrainingPageState extends State<DayTrainingPage> {
     );
     final allCompleted =
         entries.isNotEmpty && entries.every((entry) => entry.completed);
+    final dateLabel =
+        '${widget.date.month.toString().padLeft(2, '0')}.'
+        '${widget.date.day.toString().padLeft(2, '0')}';
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '${formatDateChinese(widget.date)} ${weekdayZh(widget.date)}',
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-        children: [
-          AppSectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '本次训练部位',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '先填一次，今天所有动作共用这个部位。',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+      backgroundColor: kInk,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
+              child: Row(
+                children: [
+                  LedgerBackButton(onTap: () => Navigator.maybePop(context)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '训练日',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: kSteel,
+                      letterSpacing: 2.2,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                BodyPartField(
-                  controller: _bodyPartController,
-                  suggestions: store.bodyPartSuggestions(),
-                ),
-              ],
+                  const Spacer(),
+                  Text(
+                    gym == null ? '待选健身房' : '本地记录',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: gym == null ? kSteel : kSafetyOrange,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          AppSectionCard(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 19,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withAlpha(28),
-                      child: Icon(
-                        Icons.storefront,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 21,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        dateLabel,
+                        style: theme.textTheme.displayMedium?.copyWith(
+                          fontSize: 48,
+                          height: 0.92,
+                          letterSpacing: -1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '健身房',
-                            style: Theme.of(context).textTheme.labelSmall,
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 7),
+                        child: Text(
+                          '${weekdayZh(widget.date)} · ${widget.date.year}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: kSteel,
+                            letterSpacing: 1.4,
                           ),
-                          Text(
-                            gym?.name ?? '还没有选择',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: _selectGym,
-                      child: Text(gym == null ? '选择' : '切换'),
-                    ),
-                  ],
-                ),
-                if (gym != null) ...[
-                  const Divider(height: 22),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const _SectionEyebrow(index: '01', label: '训练部位'),
+                  const SizedBox(height: 8),
+                  BodyPartField(
+                    controller: _bodyPartController,
+                    suggestions: store.bodyPartSuggestions(),
+                  ),
+                  const SizedBox(height: 24),
+                  const _SectionEyebrow(index: '02', label: '健身房'),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
-                      _SummaryItem(value: '${entries.length}', label: '动作'),
-                      _SummaryItem(value: '$totalGroups', label: '总组数'),
-                      _SummaryItem(value: '$totalReps', label: '总次数'),
+                      Expanded(
+                        child: Text(
+                          gym?.name ?? '还没有选择健身房',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 17,
+                            color: gym == null ? kSteel : kChalk,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _selectGym,
+                        child: Text(gym == null ? '选择' : '切换'),
+                      ),
+                    ],
+                  ),
+                  if (gym != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _Metric(value: '${entries.length}', label: '动作'),
+                        _Metric(value: '$totalGroups', label: '组数'),
+                        _Metric(value: '$totalReps', label: '次数'),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 26),
+                  const _SectionEyebrow(index: '03', label: '动作与组'),
+                  if (gym == null)
+                    _LedgerEmpty(
+                      title: store.gyms.isEmpty ? '先新建一家健身房。' : '先选择健身房。',
+                      message: store.gyms.isEmpty
+                          ? '健身房是训练记录的归属；建好之后，动作预设也归它。'
+                          : '选择健身房后，才能添加动作和组记录。',
+                      actionLabel: store.gyms.isEmpty ? '新建健身房' : '选择健身房',
+                      onAction: store.gyms.isEmpty
+                          ? () async {
+                              final created = await _createGym(context);
+                              if (created != null && mounted) {
+                                setState(() => _gymId = created.id);
+                              }
+                            }
+                          : _selectGym,
+                    )
+                  else if (entries.isEmpty)
+                    _LedgerEmpty(
+                      title: bodyPartEmpty ? '先填写本次训练部位。' : '今天还没有动作记录。',
+                      message: bodyPartEmpty
+                          ? '部位只填一次，今天所有动作共用；可以写“胸，三头”。'
+                          : '从动作预设里选，或临时新建一个动作。',
+                      actionLabel: bodyPartEmpty ? null : '添加动作',
+                      onAction: bodyPartEmpty ? null : _addExercise,
+                    )
+                  else ...[
+                    const SizedBox(height: 4),
+                    for (final entry in entries)
+                      _EntryLedger(
+                        entry: entry,
+                        sets: store.setsForEntry(entry.id),
+                        onToggle: (value) async {
+                          try {
+                            await store.toggleEntryCompleted(entry, value);
+                            if (!value && mounted && _sessionEnded) {
+                              setState(() => _sessionEnded = false);
+                            }
+                          } catch (error) {
+                            if (context.mounted) showErrorSnack(context, error);
+                          }
+                        },
+                        onEdit: () => _editEntry(entry),
+                        onDelete: () => _deleteEntry(entry),
+                        onAddSet: () => _editOrAddSet(entry: entry),
+                        onEditSet: (set) =>
+                            _editOrAddSet(entry: entry, existing: set),
+                        onDeleteSet: _deleteSet,
+                      ),
+                    if (!bodyPartEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: _addExercise,
+                            child: const Text('+ 继续添加动作'),
+                          ),
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      const LedgerStatusLine(active: false, height: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '修改会即时保存到本机。换机前请先导出 Excel 备份。',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: kSteel,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-          if (gym == null)
-            AppSectionCard(
-              child: EmptyState(
-                icon: Icons.storefront_outlined,
-                title: store.gyms.isEmpty ? '先新建健身房' : '先选择健身房',
-                message: store.gyms.isEmpty
-                    ? '记录当天训练前，需要先有一家健身房。'
-                    : '选择健身房后，才能添加动作和组记录。',
-                action: FilledButton.icon(
-                  onPressed: store.gyms.isEmpty
-                      ? () async {
-                          final created = await _createGym(context);
-                          if (created != null && mounted) {
-                            setState(() => _gymId = created.id);
-                          }
-                        }
-                      : _selectGym,
-                  icon: const Icon(Icons.add),
-                  label: Text(store.gyms.isEmpty ? '新建健身房' : '选择健身房'),
-                ),
-              ),
-            )
-          else if (entries.isEmpty)
-            AppSectionCard(
-              child: EmptyState(
-                icon: bodyPartEmpty
-                    ? Icons.accessibility_new
-                    : Icons.fitness_center,
-                title: bodyPartEmpty ? '先填写本次训练部位' : '今天还没有动作记录',
-                message: bodyPartEmpty
-                    ? '在上方填写一次部位（可自由组合，如“胸，三头”），'
-                          '再添加动作。'
-                    : '从动作预设选择，或临时新建一个动作。'
-                          '每个动作下可以添加多行组。',
-                action: bodyPartEmpty
-                    ? null
-                    : FilledButton.icon(
-                        onPressed: _addExercise,
-                        icon: const Icon(Icons.add),
-                        label: const Text('添加动作'),
-                      ),
-              ),
-            )
-          else ...[
-            const SectionTitle('动作与组'),
-            for (final entry in entries)
-              _EntryCard(
-                entry: entry,
-                sets: store.setsForEntry(entry.id),
-                onToggle: (value) async {
-                  try {
-                    await store.toggleEntryCompleted(entry, value);
-                    if (!value && mounted && _sessionEnded) {
-                      setState(() => _sessionEnded = false);
-                    }
-                  } catch (error) {
-                    if (context.mounted) showErrorSnack(context, error);
-                  }
-                },
-                onEdit: () => _editEntry(entry),
-                onDelete: () => _deleteEntry(entry),
-                onAddSet: () => _editOrAddSet(entry: entry),
-                onEditSet: (set) => _editOrAddSet(entry: entry, existing: set),
-                onDeleteSet: _deleteSet,
-              ),
-            const SizedBox(height: 4),
-            if (!bodyPartEmpty)
-              OutlinedButton.icon(
-                onPressed: _addExercise,
-                icon: const Icon(Icons.add),
-                label: const Text('继续添加动作'),
-              ),
+            _CommandBar(
+              gymSelected: gym != null,
+              bodyPartEmpty: bodyPartEmpty,
+              hasEntries: entries.isNotEmpty,
+              allCompleted: allCompleted,
+              sessionEnded: _sessionEnded,
+              onSelectGym: _selectGym,
+              onAddExercise: _addExercise,
+              onPrimary: () {
+                if (_sessionEnded) {
+                  _showCompletion(
+                    store: store,
+                    entries: entries,
+                    totalGroups: totalGroups,
+                  );
+                } else {
+                  _endToday(
+                    store: store,
+                    entries: entries,
+                    totalGroups: totalGroups,
+                  );
+                }
+              },
+            ),
           ],
-          const SizedBox(height: 10),
-          const AppInfoBanner(
-            icon: Icons.cloud_off_outlined,
-            text:
-                '修改会即时保存到本机 Isar 数据库。卸载 App 会清除全部数据，'
-                '换机前请先导出 Excel 备份。',
-          ),
-        ],
+        ),
       ),
-      floatingActionButton: gym == null || bodyPartEmpty
-          ? null
-          : allCompleted
-          ? FloatingActionButton.extended(
-              onPressed: _sessionEnded
-                  ? () => _showCompletion(
-                      store: store,
-                      entries: entries,
-                      totalGroups: totalGroups,
-                    )
-                  : () => _endToday(
-                      store: store,
-                      entries: entries,
-                      totalGroups: totalGroups,
-                    ),
-              icon: Icon(
-                _sessionEnded
-                    ? Icons.emoji_events_outlined
-                    : Icons.flag_outlined,
-              ),
-              label: Text(_sessionEnded ? '查看训练总结' : '结束今日训练'),
-            )
-          : FloatingActionButton.extended(
-              onPressed: _addExercise,
-              icon: const Icon(Icons.add),
-              label: const Text('添加动作'),
-            ),
     );
   }
 }
 
-class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({required this.value, required this.label});
+class _SectionEyebrow extends StatelessWidget {
+  const _SectionEyebrow({required this.index, required this.label});
+
+  final String index;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Text(
+          index,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: kSafetyOrange,
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: kSteel,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(child: LedgerRule(color: kLineSoft)),
+      ],
+    );
+  }
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.value, required this.label});
 
   final String value;
   final String label;
@@ -724,23 +848,84 @@ class _SummaryItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.primary,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontSize: 27,
+              height: 1,
+              color: kChalk,
             ),
           ),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: kSteel, letterSpacing: 1.2),
+          ),
         ],
       ),
     );
   }
 }
 
-class _EntryCard extends StatelessWidget {
-  const _EntryCard({
+class _LedgerEmpty extends StatelessWidget {
+  const _LedgerEmpty({
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: kLine),
+          bottom: BorderSide(color: kLine),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontSize: 17,
+              color: kChalk,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: kSteel,
+              height: 1.6,
+            ),
+          ),
+          if (actionLabel != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EntryLedger extends StatelessWidget {
+  const _EntryLedger({
     required this.entry,
     required this.sets,
     required this.onToggle,
@@ -763,17 +948,26 @@ class _EntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AppSectionCard(
-      padding: const EdgeInsets.fromLTRB(12, 8, 8, 10),
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: kLine)),
+      ),
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Checkbox(
-                value: entry.completed,
-                onChanged: (value) => onToggle(value ?? false),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: LedgerCheck(
+                  value: entry.completed,
+                  onChanged: onToggle,
+                  size: 22,
+                ),
               ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -781,36 +975,33 @@ class _EntryCard extends StatelessWidget {
                     Text(
                       entry.exerciseName,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
                         decoration: entry.completed
                             ? TextDecoration.lineThrough
                             : null,
-                        color: entry.completed
-                            ? theme.colorScheme.onSurfaceVariant
-                            : null,
+                        color: entry.completed ? kSteel : kChalk,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 3,
-                      children: [
-                        _MetaChip(
-                          icon: Icons.accessibility_new,
-                          text: entry.bodyPart,
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        entry.bodyPart,
                         if (entry.restText.trim().isNotEmpty)
-                          _MetaChip(
-                            icon: Icons.timer_outlined,
-                            text: '休息 ${entry.restText.trim()}',
-                          ),
-                      ],
+                          '休息 ${entry.restText.trim()}',
+                      ].join('  ·  '),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: kSteel,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ],
                 ),
               ),
               PopupMenuButton<String>(
                 tooltip: '更多',
+                padding: EdgeInsets.zero,
+                color: kGraphite,
                 onSelected: (value) {
                   if (value == 'edit') onEdit();
                   if (value == 'delete') onDelete();
@@ -819,43 +1010,62 @@ class _EntryCard extends StatelessWidget {
                   PopupMenuItem(value: 'edit', child: Text('编辑动作')),
                   PopupMenuItem(value: 'delete', child: Text('删除动作')),
                 ],
+                child: const SizedBox(
+                  width: 38,
+                  height: 38,
+                  child: Center(
+                    child: Text(
+                      '···',
+                      style: TextStyle(
+                        color: kSteel,
+                        fontSize: 18,
+                        height: 1,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
           if (entry.note.trim().isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              padding: const EdgeInsets.only(left: 34, top: 6),
               child: Text(
                 entry.note.trim(),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.4,
+                  color: kSteel,
+                  height: 1.45,
                 ),
               ),
             ),
-          const Divider(height: 16),
+          const SizedBox(height: 12),
           if (sets.isEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
+              padding: const EdgeInsets.only(left: 34, bottom: 4),
               child: Text(
-                '还没有组记录',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                '还没有组记录。',
+                style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
               ),
             )
-          else
+          else ...[
+            const Padding(
+              padding: EdgeInsets.only(left: 34),
+              child: _SetHeader(),
+            ),
             for (final set in sets)
-              _SetRow(
-                set: set,
-                onEdit: () => onEditSet(set),
-                onDelete: () => onDeleteSet(set),
+              Padding(
+                padding: const EdgeInsets.only(left: 34),
+                child: _SetLedgerRow(
+                  set: set,
+                  onEdit: () => onEditSet(set),
+                  onDelete: () => onDeleteSet(set),
+                ),
               ),
-          const SizedBox(height: 4),
-          TextButton.icon(
-            onPressed: onAddSet,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('添加一组'),
+          ],
+          Padding(
+            padding: const EdgeInsets.only(left: 30),
+            child: TextButton(onPressed: onAddSet, child: const Text('+ 添加一组')),
           ),
         ],
       ),
@@ -863,8 +1073,36 @@ class _EntryCard extends StatelessWidget {
   }
 }
 
-class _SetRow extends StatelessWidget {
-  const _SetRow({
+class _SetHeader extends StatelessWidget {
+  const _SetHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(color: kSteel, letterSpacing: 1);
+    return Container(
+      padding: const EdgeInsets.only(bottom: 6),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: kLineSoft)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: 32, child: Text('组', style: style)),
+          Expanded(child: Text('重量', style: style)),
+          SizedBox(
+            width: 48,
+            child: Text('次数', style: style, textAlign: TextAlign.right),
+          ),
+          const SizedBox(width: 36),
+        ],
+      ),
+    );
+  }
+}
+
+class _SetLedgerRow extends StatelessWidget {
+  const _SetLedgerRow({
     required this.set,
     required this.onEdit,
     required this.onDelete,
@@ -884,67 +1122,138 @@ class _SetRow extends StatelessWidget {
       raw: set.weightRaw,
     );
     final unresolved = set.weightValue == null && set.weightRaw.isNotEmpty;
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withAlpha(70),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onEdit,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 7, 2, 7),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 40,
-                child: Text(
-                  '第${set.groupIndex}行',
-                  style: theme.textTheme.labelSmall,
+    return InkWell(
+      onTap: onEdit,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: kLineSoft)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Text(
+                '${set.groupIndex}'.padLeft(2, '0'),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: kSteel,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-              Expanded(
-                child: Text(
-                  '${set.groupCount} 组 × $weightText × ${set.reps} 次',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: unresolved ? theme.colorScheme.error : null,
+            ),
+            Expanded(
+              child: Text(
+                weightText,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: unresolved ? kDangerRed : kChalk,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 48,
+              child: Text(
+                '${set.reps}',
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: kChalk,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 36,
+              height: 24,
+              child: InkWell(
+                onTap: onDelete,
+                child: const Center(
+                  child: Text(
+                    '×',
+                    style: TextStyle(color: kSteel, fontSize: 18, height: 1),
                   ),
                 ),
               ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                onPressed: onDelete,
-                icon: const Icon(Icons.close, size: 18),
-                tooltip: '删除',
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.text});
+class _CommandBar extends StatelessWidget {
+  const _CommandBar({
+    required this.gymSelected,
+    required this.bodyPartEmpty,
+    required this.hasEntries,
+    required this.allCompleted,
+    required this.sessionEnded,
+    required this.onSelectGym,
+    required this.onAddExercise,
+    required this.onPrimary,
+  });
 
-  final IconData icon;
-  final String text;
+  final bool gymSelected;
+  final bool bodyPartEmpty;
+  final bool hasEntries;
+  final bool allCompleted;
+  final bool sessionEnded;
+  final VoidCallback onSelectGym;
+  final VoidCallback onAddExercise;
+  final VoidCallback onPrimary;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 3),
-        Text(
-          text,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+    Widget leading;
+    if (!gymSelected) {
+      leading = Expanded(
+        child: OutlinedButton(
+          onPressed: onSelectGym,
+          child: const Text('选择健身房'),
         ),
-      ],
+      );
+    } else if (bodyPartEmpty) {
+      leading = Expanded(
+        child: Text(
+          '填写训练部位后，才能添加动作。',
+          style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
+        ),
+      );
+    } else {
+      leading = TextButton(
+        onPressed: onAddExercise,
+        child: const Text('+ 添加动作'),
+      );
+    }
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: kCarbon,
+        border: Border(top: BorderSide(color: kLine)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            leading,
+            const Spacer(),
+            if (gymSelected && !bodyPartEmpty && hasEntries)
+              allCompleted
+                  ? FilledButton(
+                      onPressed: onPrimary,
+                      child: Text(sessionEnded ? '查看训练总结' : '结束今日训练'),
+                    )
+                  : Text(
+                      '勾选全部动作后结束',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: kSteel,
+                      ),
+                    ),
+          ],
+        ),
+      ),
     );
   }
 }

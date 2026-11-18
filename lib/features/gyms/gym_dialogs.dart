@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/exercise_group.dart';
+import '../../core/theme.dart';
 import '../../data/models/exercise_preset.dart';
 import '../../data/models/gym.dart';
+import '../../widgets/ledger.dart';
 
 class GymFormResult {
   const GymFormResult({required this.name, required this.note});
@@ -52,47 +54,10 @@ class _GymFormDialogState extends State<GymFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.gym == null ? '新建健身房' : '编辑健身房'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                autofocus: true,
-                maxLength: 30,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: '健身房名称',
-                  hintText: '例如：公司附近的店',
-                  counterText: '',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '请输入健身房名称';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _noteController,
-                maxLines: 3,
-                maxLength: 200,
-                decoration: const InputDecoration(
-                  labelText: '备注（可选）',
-                  hintText: '例如：离家近、停车方便',
-                  alignLabelWithHint: true,
-                  counterText: '',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return LedgerDialog(
+      eyebrow: widget.gym == null ? 'NEW GYM' : 'EDIT GYM',
+      title: widget.gym == null ? '新建健身房' : '编辑健身房',
+      subtitle: '场馆信息只保存在本机',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -100,6 +65,43 @@ class _GymFormDialogState extends State<GymFormDialog> {
         ),
         FilledButton(onPressed: _submit, child: const Text('保存')),
       ],
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              autofocus: true,
+              maxLength: 30,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: '健身房名称',
+                hintText: '例如：南京信息工程大学体育馆',
+                counterText: '',
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return '请输入健身房名称';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _noteController,
+              maxLines: 3,
+              maxLength: 200,
+              decoration: const InputDecoration(
+                labelText: '备注（可选）',
+                hintText: '器械特点、地址、开放时间',
+                alignLabelWithHint: true,
+                counterText: '',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -172,73 +174,10 @@ class _PresetFormDialogState extends State<PresetFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.preset == null ? '新增动作预设' : '编辑动作预设'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.gymName.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '健身房：${widget.gymName}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ),
-              DropdownButtonFormField<String>(
-                initialValue: _group,
-                decoration: const InputDecoration(
-                  labelText: '分组',
-                  helperText: '预设页和添加动作时按此分组折叠',
-                  helperMaxLines: 2,
-                ),
-                items: [
-                  for (final group in kExerciseGroups)
-                    DropdownMenuItem(value: group, child: Text(group)),
-                ],
-                onChanged: (value) {
-                  if (value != null) setState(() => _group = value);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _nameController,
-                autofocus: true,
-                maxLength: 40,
-                decoration: const InputDecoration(
-                  labelText: '动作名称',
-                  hintText: '例如：史密斯卧推',
-                  counterText: '',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '请输入动作名称';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _noteController,
-                maxLines: 3,
-                maxLength: 200,
-                decoration: const InputDecoration(
-                  labelText: '备注（可选）',
-                  hintText: '器械编号、动作要点等',
-                  alignLabelWithHint: true,
-                  counterText: '',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return LedgerDialog(
+      eyebrow: widget.preset == null ? 'NEW MOVEMENT' : 'EDIT MOVEMENT',
+      title: widget.preset == null ? '新增动作预设' : '编辑动作预设',
+      subtitle: widget.gymName.isEmpty ? '动作按肌群归组' : '归属：${widget.gymName}',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -246,6 +185,81 @@ class _PresetFormDialogState extends State<PresetFormDialog> {
         ),
         FilledButton(onPressed: _submit, child: const Text('保存')),
       ],
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '分组',
+              style: TextStyle(fontSize: 10, color: kSteel, letterSpacing: 1.8),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final group in kExerciseGroups)
+                  InkWell(
+                    onTap: () => setState(() => _group = group),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _group == group ? kSafetyOrange : kGraphite,
+                        border: Border.all(
+                          color: _group == group ? kSafetyOrange : kLine,
+                        ),
+                      ),
+                      child: Text(
+                        group,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _group == group ? kInk : kSteel,
+                          fontWeight: _group == group
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _nameController,
+              autofocus: true,
+              maxLength: 40,
+              decoration: const InputDecoration(
+                labelText: '动作名称',
+                hintText: '例如：史密斯卧推',
+                counterText: '',
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return '请输入动作名称';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _noteController,
+              maxLines: 3,
+              maxLength: 200,
+              decoration: const InputDecoration(
+                labelText: '备注（可选）',
+                hintText: '器械编号、动作要点',
+                alignLabelWithHint: true,
+                counterText: '',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

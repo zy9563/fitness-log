@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/exercise_group.dart';
+import '../../core/theme.dart';
 import '../../data/fitness_store.dart';
 import '../../data/models/exercise_preset.dart';
 import '../../data/models/gym.dart';
 import '../../widgets/app_widgets.dart';
-import '../../widgets/exercise_group_badge.dart';
+import '../../widgets/ledger.dart';
 import 'gym_dialogs.dart';
 
 class GymDetailPage extends StatelessWidget {
@@ -122,13 +123,18 @@ class GymDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.watch<FitnessStore>();
     final gym = store.gymById(gymId);
+    final theme = Theme.of(context);
     if (gym == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('健身房')),
-        body: const EmptyState(
-          icon: Icons.storefront_outlined,
-          title: '健身房不存在',
-          message: '它可能已经被删除。',
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const LedgerBackButton(),
+              const SizedBox(height: 30),
+              const EmptyState(title: '健身房不存在', message: '它可能已经被删除。'),
+            ],
+          ),
         ),
       );
     }
@@ -138,177 +144,234 @@ class GymDetailPage extends StatelessWidget {
     final activeGroups = grouped.values
         .where((items) => items.isNotEmpty)
         .length;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(gym.name),
-        actions: [
-          IconButton(
-            tooltip: '编辑健身房',
-            onPressed: () => _editGym(context, gym),
-            icon: const Icon(Icons.edit_outlined),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'delete') _deleteGym(context, gym);
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'delete', child: Text('删除健身房')),
-            ],
-          ),
-        ],
-      ),
       body: SafeArea(
-        child: Column(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: AppSectionCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.notes,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        gym.note.trim().isEmpty
-                            ? '这个健身房还没有备注。可以点击右上角编辑。'
-                            : gym.note.trim(),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  ],
+            Row(
+              children: [
+                const LedgerBackButton(),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => _editGym(context, gym),
+                  child: const Text('编辑'),
+                ),
+                TextButton(
+                  onPressed: () => _deleteGym(context, gym),
+                  style: TextButton.styleFrom(foregroundColor: kDangerRed),
+                  child: const Text('删除'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LedgerPageHeader(
+              title: gym.name,
+              subtitle: '${presets.length} 个动作 · $activeGroups 组有内容',
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: kSafetyOrange, width: 2),
+                  top: BorderSide(color: kLineSoft),
+                  bottom: BorderSide(color: kLineSoft),
+                ),
+              ),
+              child: Text(
+                gym.note.trim().isEmpty
+                    ? '这个健身房还没有备注。点右上角“编辑”补充器械或地址。'
+                    : gym.note.trim(),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: kSteel,
+                  height: 1.5,
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-              child: Row(
-                children: [
-                  Text(
-                    '动作预设',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${presets.length} 个 · $activeGroups 组有动作',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => _addPreset(context, gym),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('新增'),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(width: 3, height: 18, color: kSafetyOrange),
+                const SizedBox(width: 9),
+                Text(
+                  '动作预设',
+                  style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => _addPreset(context, gym),
+                  child: const Text('+ 新增'),
+                ),
+              ],
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                children: [
-                  if (presets.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-                      child: Text(
-                        '还没有动作预设。展开下方任意分组即可添加，'
-                        '录入训练时也会按分组快速查找。',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  for (final group in kExerciseGroups)
-                    _buildPresetGroup(
-                      context,
-                      gym,
-                      group,
-                      grouped[group] ?? const <ExercisePreset>[],
-                    ),
-                ],
+            const SizedBox(height: 4),
+            if (presets.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                child: Text(
+                  '还没有动作预设。展开任意分组即可添加；录入训练时也会按分组快速查找。',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: kSteel,
+                    height: 1.55,
+                  ),
+                ),
               ),
-            ),
+            for (var i = 0; i < kExerciseGroups.length; i++)
+              _PresetGroup(
+                key: PageStorageKey<String>(
+                  'gym-${gym.id}-preset-group-${kExerciseGroups[i]}',
+                ),
+                index: (i + 1).toString().padLeft(2, '0'),
+                gym: gym,
+                group: kExerciseGroups[i],
+                items: grouped[kExerciseGroups[i]] ?? const <ExercisePreset>[],
+                onAdd: (group) => _addPreset(context, gym, initialGroup: group),
+                onEdit: (preset) => _editPreset(context, gym, preset),
+                onDelete: (preset) => _deletePreset(context, preset),
+              ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addPreset(context, gym),
-        icon: const Icon(Icons.add),
-        label: const Text('新增动作'),
       ),
     );
   }
+}
 
-  Widget _buildPresetGroup(
-    BuildContext context,
-    Gym gym,
-    String group,
-    List<ExercisePreset> items,
-  ) {
+class _PresetGroup extends StatefulWidget {
+  const _PresetGroup({
+    super.key,
+    required this.index,
+    required this.gym,
+    required this.group,
+    required this.items,
+    required this.onAdd,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final String index;
+  final Gym gym;
+  final String group;
+  final List<ExercisePreset> items;
+  final ValueChanged<String> onAdd;
+  final ValueChanged<ExercisePreset> onEdit;
+  final ValueChanged<ExercisePreset> onDelete;
+
+  @override
+  State<_PresetGroup> createState() => _PresetGroupState();
+}
+
+class _PresetGroupState extends State<_PresetGroup> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AppSectionCard(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.zero,
-      child: Theme(
-        data: theme.copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          key: PageStorageKey<String>('gym-${gym.id}-preset-group-$group'),
-          maintainState: true,
-          tilePadding: const EdgeInsets.only(left: 14, right: 8),
-          childrenPadding: const EdgeInsets.only(bottom: 6),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          leading: ExerciseGroupBadge(group: group),
-          title: Text(
-            group,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: _open ? kCarbon : Colors.transparent,
+        border: Border(
+          top: BorderSide(
+            color: _open ? kSafetyOrange : kLine,
+            width: _open ? 1.5 : 1,
           ),
-          subtitle: Text(
-            '${items.length} 个动作',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          children: [
-            if (items.isEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 0, 8, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '该分组暂无动作',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+          bottom: const BorderSide(color: kLineSoft),
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      widget.index,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: kSafetyOrange,
+                        letterSpacing: 1,
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: () =>
-                          _addPreset(context, gym, initialGroup: group),
-                      icon: const Icon(Icons.add, size: 17),
-                      label: const Text('添加'),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.group,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontSize: 17,
+                        color: kChalk,
+                      ),
                     ),
-                  ],
-                ),
-              )
-            else
-              for (final preset in items)
-                _PresetRow(
-                  preset: preset,
-                  group: group,
-                  onEdit: () => _editPreset(context, gym, preset),
-                  onDelete: () => _deletePreset(context, preset),
-                ),
-          ],
-        ),
+                  ),
+                  Text(
+                    '${widget.items.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: kSteel,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _open ? '−' : '+',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      color: kSteel,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(34, 0, 0, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '该分组暂无动作',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: kSteel,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => widget.onAdd(widget.group),
+                            child: const Text('+ 添加'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    for (final preset in widget.items)
+                      _PresetRow(
+                        preset: preset,
+                        group: widget.group,
+                        onEdit: () => widget.onEdit(preset),
+                        onDelete: () => widget.onDelete(preset),
+                      ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () => widget.onAdd(widget.group),
+                      child: const Text('+ 添加到本组'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -331,47 +394,62 @@ class _PresetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final note = preset.note.trim();
-    return InkWell(
-      onTap: onEdit,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 7, 2, 7),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    preset.name,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: kLineSoft)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: onEdit,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      preset.name,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: 15,
+                        color: kChalk,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    note.isEmpty ? '分组：$group' : '分组：$group · $note',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                    if (note.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        note,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: kSteel,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
-            PopupMenuButton<String>(
-              tooltip: '更多',
-              onSelected: (value) {
-                if (value == 'edit') onEdit();
-                if (value == 'delete') onDelete();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('编辑')),
-                PopupMenuItem(value: 'delete', child: Text('删除')),
-              ],
+          ),
+          PopupMenuButton<String>(
+            tooltip: '更多',
+            onSelected: (value) {
+              if (value == 'edit') onEdit();
+              if (value == 'delete') onDelete();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('编辑')),
+              PopupMenuItem(value: 'delete', child: Text('删除')),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Text(
+                '···',
+                style: TextStyle(fontSize: 15, color: kSteel, letterSpacing: 1),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

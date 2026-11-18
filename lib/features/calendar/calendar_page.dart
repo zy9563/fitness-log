@@ -9,8 +9,7 @@ import '../../core/theme.dart';
 import '../../data/fitness_store.dart';
 import '../../data/models/training_entry.dart';
 import '../../data/models/training_set.dart';
-import '../../widgets/app_widgets.dart';
-import '../../widgets/edge_fade_list_view.dart';
+import '../../widgets/ledger.dart';
 import '../training/day_training_page.dart';
 
 class CalendarPage extends StatefulWidget {
@@ -31,6 +30,20 @@ class _CalendarPageState extends State<CalendarPage> {
   bool _suppressSelection = false;
 
   static const _lastCalendarPage = (2100 - 2000) * 12 + 11;
+  static const _monthNames = [
+    '一月',
+    '二月',
+    '三月',
+    '四月',
+    '五月',
+    '六月',
+    '七月',
+    '八月',
+    '九月',
+    '十月',
+    '十一月',
+    '十二月',
+  ];
 
   @override
   void dispose() {
@@ -68,7 +81,6 @@ class _CalendarPageState extends State<CalendarPage> {
     _suppressSelection = true;
     _holdDirection = direction;
     _holdCount = 0;
-    // 长按后立即翻一页，随后间隔逐次缩短，形成连续加速。
     _turnPage(direction, accelerated: true);
     _scheduleHoldTick();
   }
@@ -88,7 +100,6 @@ class _CalendarPageState extends State<CalendarPage> {
     _holdTimer = null;
     if (_suppressSelection) {
       _suppressSelectionTimer?.cancel();
-      // 页面上移后，手指抬起的位置可能落到新的日期格上；短暂吞掉这次选择。
       _suppressSelectionTimer = Timer(const Duration(milliseconds: 380), () {
         _suppressSelection = false;
       });
@@ -108,238 +119,359 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  void _goToday() {
+    final today = dateOnly(DateTime.now());
+    setState(() {
+      _focusedDay = today;
+      _selectedDay = today;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FitnessStore>();
     final selectedEntries = store.entriesForDate(_selectedDay);
     final gyms = store.gymsWithEntriesOn(_selectedDay);
+    final groupCount = selectedEntries.fold<int>(
+      0,
+      (sum, entry) => sum + store.totalGroupCountForEntry(entry.id),
+    );
+    final theme = Theme.of(context);
 
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('健身记录'),
-        actions: [
-          IconButton(
-            tooltip: '回到今天',
-            onPressed: () {
-              final today = dateOnly(DateTime.now());
-              setState(() {
-                _focusedDay = today;
-                _selectedDay = today;
-              });
-            },
-            icon: const Icon(Icons.today_outlined),
-          ),
-        ],
-      ),
-      body: EdgeFadeListView(
-        padding: EdgeInsets.fromLTRB(12, topInset, 12, 120),
-        topFadeHeight: topInset + 16,
-        bottomFadeHeight: 130,
-        children: [
-          AppSectionCard(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-            elevated: true,
-            child: Column(
+      backgroundColor: kInk,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 30),
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
-                  child: Row(
+                Expanded(
+                  child: Text(
+                    '健身记录',
+                    style: theme.textTheme.displayMedium?.copyWith(
+                      fontSize: 40,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _goToday,
+                  style: TextButton.styleFrom(
+                    foregroundColor: kSteel,
+                    minimumSize: const Size(52, 36),
+                  ),
+                  child: const Text('今天'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            _MonthLedger(
+              focusedDay: _focusedDay,
+              selectedDay: _selectedDay,
+              onCalendarCreated: (controller) =>
+                  _calendarController = controller,
+              onTurn: _turnPage,
+              onHoldStart: _startHold,
+              onHoldEnd: _stopHold,
+              store: store,
+              onSelect: (selectedDay, focusedDay) {
+                if (_suppressSelection) return;
+                setState(() {
+                  _selectedDay = dateOnly(selectedDay);
+                  _focusedDay = focusedDay;
+                });
+              },
+              onPageChanged: (focusedDay) {
+                if (mounted) {
+                  setState(() => _focusedDay = focusedDay);
+                } else {
+                  _focusedDay = focusedDay;
+                }
+              },
+            ),
+            const SizedBox(height: 24),
+            _DayMasthead(
+              day: _selectedDay,
+              countText: selectedEntries.isEmpty
+                  ? '0 个动作 · 0 组'
+                  : '${gyms.length} 个健身房 · ${selectedEntries.length} 个动作 · $groupCount 组',
+              onOpen: () => _openDay(_selectedDay),
+            ),
+            if (selectedEntries.isEmpty)
+              _EmptyDay(onOpen: () => _openDay(_selectedDay))
+            else ...[
+              const LedgerRule(),
+              for (final entry in selectedEntries)
+                _EntryRow(
+                  entry: entry,
+                  gymName: store.gymById(entry.gymId)?.name ?? '',
+                  sets: store.setsForEntry(entry.id),
+                  onTap: () => _openDay(_selectedDay),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthLedger extends StatelessWidget {
+  const _MonthLedger({
+    required this.focusedDay,
+    required this.selectedDay,
+    required this.onCalendarCreated,
+    required this.onTurn,
+    required this.onHoldStart,
+    required this.onHoldEnd,
+    required this.store,
+    required this.onSelect,
+    required this.onPageChanged,
+  });
+
+  final DateTime focusedDay;
+  final DateTime selectedDay;
+  final ValueChanged<PageController> onCalendarCreated;
+  final void Function(int direction, {bool accelerated}) onTurn;
+  final void Function(int direction) onHoldStart;
+  final VoidCallback onHoldEnd;
+  final FitnessStore store;
+  final void Function(DateTime selectedDay, DateTime focusedDay) onSelect;
+  final void Function(DateTime focusedDay) onPageChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: const BoxDecoration(
+        color: kCarbon,
+        border: Border(
+          top: BorderSide(color: kSafetyOrange, width: 1.5),
+          bottom: BorderSide(color: kLine),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(0, 14, 0, 10),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _CalendarArrow(
-                        icon: Icons.chevron_left,
-                        tooltip: '上个月',
-                        onTap: () => _turnPage(-1),
-                        onHoldStart: () => _startHold(-1),
-                        onHoldEnd: _stopHold,
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            '${_focusedDay.year}年${_focusedDay.month}月',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
+                      Text(
+                        _CalendarPageState._monthNames[focusedDay.month - 1],
+                        style: theme.textTheme.headlineLarge?.copyWith(
+                          fontSize: 30,
                         ),
                       ),
-                      _CalendarArrow(
-                        icon: Icons.chevron_right,
-                        tooltip: '下个月',
-                        onTap: () => _turnPage(1),
-                        onHoldStart: () => _startHold(1),
-                        onHoldEnd: _stopHold,
+                      const SizedBox(height: 2),
+                      Text(
+                        '${focusedDay.year}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: kSteel,
+                          letterSpacing: 2,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                TableCalendar<TrainingEntry>(
-                  locale: 'zh_CN',
-                  firstDay: DateTime(2000, 1, 1),
-                  lastDay: DateTime(2100, 12, 31),
-                  focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) => isSameDate(day, _selectedDay),
-                  eventLoader: store.entriesForDate,
-                  calendarFormat: CalendarFormat.month,
-                  availableCalendarFormats: const {CalendarFormat.month: '月'},
-                  startingDayOfWeek: StartingDayOfWeek.monday,
-                  headerVisible: false,
-                  onCalendarCreated: (controller) =>
-                      _calendarController = controller,
-                  daysOfWeekStyle: DaysOfWeekStyle(
-                    weekdayStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                    weekendStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                  calendarStyle: CalendarStyle(
-                    outsideDaysVisible: false,
-                    cellMargin: const EdgeInsets.all(4),
-                    todayDecoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withAlpha(38),
-                      shape: BoxShape.circle,
-                    ),
-                    selectedDecoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    weekendTextStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  calendarBuilders: CalendarBuilders<TrainingEntry>(
-                    markerBuilder: (context, day, entries) {
-                      if (entries.isEmpty) return null;
-                      final allCompleted = entries.every(
-                        (entry) => entry.completed,
-                      );
-                      return Container(
-                        width: 18,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: allCompleted ? kPrimaryBlue : kWarmYellow,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      );
-                    },
-                  ),
-                  onDaySelected: (selectedDay, focusedDay) {
-                    if (_suppressSelection) return;
-                    setState(() {
-                      _selectedDay = dateOnly(selectedDay);
-                      _focusedDay = focusedDay;
-                    });
-                  },
-                  onPageChanged: (focusedDay) {
-                    if (mounted) {
-                      setState(() => _focusedDay = focusedDay);
-                    } else {
-                      _focusedDay = focusedDay;
-                    }
-                  },
+                LedgerArrow(
+                  left: true,
+                  onTap: () => onTurn(-1),
+                  onLongPressStart: () => onHoldStart(-1),
+                  onLongPressEnd: onHoldEnd,
+                  onLongPressCancel: onHoldEnd,
+                ),
+                const SizedBox(width: 8),
+                LedgerArrow(
+                  left: false,
+                  onTap: () => onTurn(1),
+                  onLongPressStart: () => onHoldStart(1),
+                  onLongPressEnd: onHoldEnd,
+                  onLongPressCancel: onHoldEnd,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 4),
-          SectionTitle(
-            '${formatDateChinese(_selectedDay)} ${weekdayZh(_selectedDay)}',
-            subtitle: selectedEntries.isEmpty
-                ? '还没有训练记录'
-                : '${gyms.length} 个健身房 · ${selectedEntries.length} 个动作 · '
-                      '${selectedEntries.fold<int>(0, (sum, entry) => sum + store.totalGroupCountForEntry(entry.id))} 组',
-            trailing: TextButton(
-              onPressed: () => _openDay(_selectedDay),
-              child: const Text('记录'),
+          const SizedBox(height: 12),
+          TableCalendar<TrainingEntry>(
+            locale: 'zh_CN',
+            firstDay: DateTime(2000, 1, 1),
+            lastDay: DateTime(2100, 12, 31),
+            focusedDay: focusedDay,
+            selectedDayPredicate: (day) => isSameDate(day, selectedDay),
+            eventLoader: store.entriesForDate,
+            calendarFormat: CalendarFormat.month,
+            availableCalendarFormats: const {CalendarFormat.month: '月'},
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            headerVisible: false,
+            daysOfWeekHeight: 30,
+            rowHeight: 47,
+            onCalendarCreated: onCalendarCreated,
+            daysOfWeekStyle: const DaysOfWeekStyle(
+              weekdayStyle: TextStyle(color: kSteel, fontSize: 11.5),
+              weekendStyle: TextStyle(color: kSteel, fontSize: 11.5),
             ),
+            calendarStyle: CalendarStyle(
+              outsideDaysVisible: false,
+              cellMargin: const EdgeInsets.all(2),
+              cellPadding: EdgeInsets.zero,
+              defaultTextStyle: const TextStyle(
+                color: kChalk,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              weekendTextStyle: const TextStyle(color: kSteel, fontSize: 14),
+              todayDecoration: BoxDecoration(
+                border: Border.all(color: kChalk, width: 1),
+                shape: BoxShape.rectangle,
+              ),
+              todayTextStyle: const TextStyle(
+                color: kChalk,
+                fontWeight: FontWeight.w700,
+              ),
+              selectedDecoration: const BoxDecoration(
+                color: kSafetyOrange,
+                shape: BoxShape.rectangle,
+              ),
+              selectedTextStyle: const TextStyle(
+                color: kInk,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            calendarBuilders: CalendarBuilders<TrainingEntry>(
+              markerBuilder: (context, day, entries) {
+                if (isSameDate(day, selectedDay)) {
+                  return const SizedBox.shrink();
+                }
+                if (entries.isEmpty) {
+                  return null;
+                }
+                final allCompleted = entries.every((entry) => entry.completed);
+                return Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: 10,
+                    height: 2,
+                    color: allCompleted ? kSafetyOrange : kChalk,
+                  ),
+                );
+              },
+            ),
+            onDaySelected: onSelect,
+            onPageChanged: onPageChanged,
           ),
-          if (selectedEntries.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
-              child: Text(
-                '当天暂无训练记录，点右下角 + 记录这一天。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            )
-          else
-            for (final entry in selectedEntries)
-              _EntrySummary(
-                entry: entry,
-                gymName: store.gymById(entry.gymId)?.name ?? '',
-                sets: store.setsForEntry(entry.id),
-                onTap: () => _openDay(_selectedDay),
-              ),
         ],
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 82),
-        child: FloatingActionButton(
-          tooltip: '记录 ${formatDate(_selectedDay)}',
-          onPressed: () => _openDay(_selectedDay),
-          child: const Icon(Icons.add),
-        ),
       ),
     );
   }
 }
 
-class _CalendarArrow extends StatelessWidget {
-  const _CalendarArrow({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    required this.onHoldStart,
-    required this.onHoldEnd,
+class _DayMasthead extends StatelessWidget {
+  const _DayMasthead({
+    required this.day,
+    required this.countText,
+    required this.onOpen,
   });
 
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final VoidCallback onHoldStart;
-  final VoidCallback onHoldEnd;
+  final DateTime day;
+  final String countText;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: tooltip,
-      child: Tooltip(
-        message: tooltip,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          onLongPressStart: (_) => onHoldStart(),
-          onLongPressEnd: (_) => onHoldEnd(),
-          onLongPressCancel: onHoldEnd,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).colorScheme.primary.withAlpha(16),
-            ),
-            child: Icon(
-              icon,
-              color: Theme.of(context).colorScheme.primary,
-              size: 23,
+    final theme = Theme.of(context);
+    final date =
+        '${day.month.toString().padLeft(2, '0')}.${day.day.toString().padLeft(2, '0')}';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(date, style: theme.textTheme.displaySmall?.copyWith(fontSize: 36)),
+        const SizedBox(width: 10),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            weekdayZh(day),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: kSteel,
+              letterSpacing: 1.4,
             ),
           ),
         ),
+        const Spacer(),
+        TextButton(onPressed: onOpen, child: const Text('记录  +')),
+      ],
+    ).withSubtitle(context, countText);
+  }
+}
+
+extension on Widget {
+  Widget withSubtitle(BuildContext context, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        this,
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: kSteel, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyDay extends StatelessWidget {
+  const _EmptyDay({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18, bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const LedgerRule(),
+          const SizedBox(height: 16),
+          Text(
+            '今天还没有记录。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: kSteel),
+          ),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: onOpen,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                '从第一个动作开始  →',
+                style: TextStyle(
+                  color: kSafetyOrange,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _EntrySummary extends StatelessWidget {
-  const _EntrySummary({
+class _EntryRow extends StatelessWidget {
+  const _EntryRow({
     required this.entry,
     required this.gymName,
     required this.sets,
@@ -354,38 +486,51 @@ class _EntrySummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final groupCount = sets.fold<int>(0, (sum, set) => sum + set.groupCount);
-    return AppSectionCard(
+    return InkWell(
       onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.exerciseName,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$gymName · ${entry.bodyPart} · $groupCount 组',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: kLineSoft)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            LedgerStatusLine(active: entry.completed, height: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.exerciseName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Text(
+                    '$gymName · ${entry.bodyPart} · $groupCount 组',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: kSteel),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Icon(
-            entry.completed ? Icons.check_circle : Icons.chevron_right,
-            color: entry.completed
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              entry.completed ? '✓' : '›',
+              style: TextStyle(
+                color: entry.completed ? kSafetyOrange : kSteel,
+                fontSize: entry.completed ? 18 : 20,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

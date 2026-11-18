@@ -5,213 +5,490 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/models/theme_settings.dart';
-import 'weight.dart';
 
-const Color kPrimaryBlue = Color(0xFF4285F4);
-const Color kWarmYellow = Color(0xFFF5A623);
-const Color kDangerRed = Color(0xFFE53E3E);
-const Color kLightBackground = Color(0xFFF7FAFF);
-const Color kLightCard = Color(0xFFFFFFFF);
-const Color kDarkBackground = Color(0xFF0F141E);
-const Color kDarkCard = Color(0xFF1B2230);
+// IRON LEDGER / 铁册 — v2.0.0 design tokens.
+const Color kInk = Color(0xFF0A0B0C);
+const Color kCarbon = Color(0xFF121315);
+const Color kGraphite = Color(0xFF1A1C1E);
+const Color kChalk = Color(0xFFEDE8DC);
+const Color kSteel = Color(0xFF8B8F8C);
+const Color kSafetyOrange = Color(0xFFFF4E12);
+const Color kSafetyDeep = Color(0xFF8F2A0C);
+const Color kDangerRed = Color(0xFFFF5C4D);
+const Color kSuccess = Color(0xFF9BBF8A);
+const Color kLine = Color(0xFF303334);
+const Color kLineSoft = Color(0xFF222527);
 
-ThemeData buildDefaultLightTheme() {
-  return _buildTheme(
-    background: kLightBackground,
-    card: kLightCard,
-    pageBrightness: Brightness.light,
-    cardBrightness: Brightness.light,
-    transparentScaffold: false,
-  );
-}
+// Old names are kept only so untouched secondary screens still compile.
+// They intentionally resolve to the new palette; do not use them in new UI.
+const Color kPrimaryBlue = kSafetyOrange;
+const Color kWarmYellow = kChalk;
+const Color kLightBackground = kInk;
+const Color kLightCard = kCarbon;
+const Color kDarkBackground = kInk;
+const Color kDarkCard = kCarbon;
 
-ThemeData buildDefaultDarkTheme() {
-  return _buildTheme(
-    background: kDarkBackground,
-    card: kDarkCard,
-    pageBrightness: Brightness.dark,
-    cardBrightness: Brightness.dark,
-    transparentScaffold: false,
-  );
-}
+const String kDisplayFont = 'NotoSerifSC';
 
-ThemeData buildCustomTheme(ThemeSettings settings) {
-  final card = Color(settings.cardColorValue);
-  final background = Color(settings.backgroundColorValue);
-  final cardBrightness = ThemeData.estimateBrightnessForColor(card);
-  final hasImage = settings.useBackgroundImage;
-  // 图片背景优先于纯色背景：页面文字固定使用深色遮罩上的白色，
-  // 不再根据卡片颜色决定页面文字/遮罩。
-  final pageReference = hasImage ? Colors.black : background;
-  final pageBrightness = ThemeData.estimateBrightnessForColor(pageReference);
-  return _buildTheme(
-    background: pageReference,
-    card: card,
-    pageBrightness: pageBrightness,
-    cardBrightness: cardBrightness,
-    transparentScaffold: hasImage,
-  );
-}
+ThemeData buildLedgerTheme() {
+  final scheme =
+      const ColorScheme.dark(
+        brightness: Brightness.dark,
+        primary: kSafetyOrange,
+        onPrimary: kInk,
+        primaryContainer: kSafetyDeep,
+        onPrimaryContainer: kChalk,
+        secondary: kChalk,
+        onSecondary: kInk,
+        secondaryContainer: kGraphite,
+        onSecondaryContainer: kChalk,
+        error: kDangerRed,
+        onError: kInk,
+        surface: kCarbon,
+        onSurface: kChalk,
+      ).copyWith(
+        surfaceContainerHighest: kGraphite,
+        onSurfaceVariant: kSteel,
+        outline: kSteel,
+        outlineVariant: kLine,
+        surfaceTint: Colors.transparent,
+      );
 
-ThemeData _buildTheme({
-  required Color background,
-  required Color card,
-  required Brightness pageBrightness,
-  required Brightness cardBrightness,
-  required bool transparentScaffold,
-}) {
-  final pageText = contrastColor(background);
-  final cardText = contrastColor(card);
-  final cardSecondary = secondaryTextColor(card);
-  final seedScheme = ColorScheme.fromSeed(
-    seedColor: kPrimaryBlue,
-    brightness: cardBrightness,
-  );
-  final scheme = seedScheme.copyWith(
-    primary: cardBrightness == Brightness.dark
-        ? const Color(0xFF9CC4FF)
-        : kPrimaryBlue,
-    secondary: kWarmYellow,
-    error: kDangerRed,
-    surface: card,
-    onSurface: cardText,
-    onSurfaceVariant: cardSecondary,
-    outlineVariant: cardText.withAlpha(42),
-    outline: cardText.withAlpha(90),
-  );
+  final textTheme = _ledgerTextTheme();
 
-  final base = ThemeData(
+  return ThemeData(
     useMaterial3: true,
+    brightness: Brightness.dark,
     colorScheme: scheme,
-    brightness: cardBrightness,
-    scaffoldBackgroundColor: transparentScaffold
-        ? Colors.transparent
-        : background,
-    cardColor: card,
-    canvasColor: card,
-    extensions: <ThemeExtension<dynamic>>[PageScrimTheme(color: background)],
-    dividerColor: cardText.withAlpha(32),
-    textTheme: Typography.material2021(
-      platform: TargetPlatform.android,
-    ).black.apply(bodyColor: pageText, displayColor: pageText),
-    iconTheme: IconThemeData(color: pageText),
+    scaffoldBackgroundColor: kInk,
+    canvasColor: kInk,
+    cardColor: kCarbon,
+    dividerColor: kLine,
+    disabledColor: kSteel.withAlpha(110),
+    extensions: const <ThemeExtension<dynamic>>[PageScrimTheme(color: kInk)],
+    splashFactory: NoSplash.splashFactory,
+    visualDensity: VisualDensity.standard,
+    materialTapTargetSize: MaterialTapTargetSize.padded,
+    textTheme: textTheme,
+    primaryTextTheme: textTheme,
+    iconTheme: const IconThemeData(color: kChalk, size: 22),
     appBarTheme: AppBarTheme(
       centerTitle: false,
       elevation: 0,
       scrolledUnderElevation: 0,
+      toolbarHeight: 64,
       backgroundColor: Colors.transparent,
-      foregroundColor: pageText,
-      systemOverlayStyle: pageBrightness == Brightness.dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      foregroundColor: kChalk,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: TextStyle(
-        color: pageText,
-        fontSize: 22,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      iconTheme: const IconThemeData(color: kChalk, size: 20),
+      actionsIconTheme: const IconThemeData(color: kChalk, size: 20),
+      titleTextStyle: const TextStyle(
+        fontFamily: kDisplayFont,
+        color: kChalk,
+        fontSize: 26,
         fontWeight: FontWeight.w700,
+        height: 1.1,
       ),
-      iconTheme: IconThemeData(color: pageText),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: card,
+      backgroundColor: kCarbon,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: TextStyle(
-        color: cardText,
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(2)),
+        side: BorderSide(color: kLine),
       ),
-      contentTextStyle: TextStyle(color: cardText, fontSize: 14, height: 1.5),
+      titleTextStyle: const TextStyle(
+        fontFamily: kDisplayFont,
+        color: kChalk,
+        fontSize: 23,
+        fontWeight: FontWeight.w700,
+        height: 1.2,
+      ),
+      contentTextStyle: const TextStyle(
+        color: kChalk,
+        fontSize: 14.5,
+        height: 1.65,
+      ),
     ),
-    bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: card,
-      modalBackgroundColor: card,
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: kCarbon,
+      modalBackgroundColor: kCarbon,
       surfaceTintColor: Colors.transparent,
-      modalBarrierColor: Colors.black.withAlpha(80),
+      modalBarrierColor: Color(0xB8000000),
+      shape: RoundedRectangleBorder(),
+      dragHandleColor: kSteel,
+      showDragHandle: false,
     ),
     inputDecorationTheme: InputDecorationTheme(
       isDense: true,
       filled: true,
-      fillColor: _tint(card, cardText, 8),
-      labelStyle: TextStyle(color: cardSecondary),
-      hintStyle: TextStyle(color: cardSecondary.withAlpha(150)),
-      prefixIconColor: cardSecondary,
-      suffixIconColor: cardSecondary,
-      counterStyle: TextStyle(color: cardSecondary),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: cardText.withAlpha(45)),
+      fillColor: kInk,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      labelStyle: const TextStyle(color: kSteel, fontSize: 13),
+      floatingLabelStyle: const TextStyle(color: kSteel, fontSize: 12),
+      hintStyle: TextStyle(color: kSteel.withAlpha(150), fontSize: 14),
+      prefixIconColor: kSteel,
+      suffixIconColor: kSteel,
+      counterStyle: const TextStyle(color: kSteel, fontSize: 11),
+      helperStyle: const TextStyle(color: kSteel, fontSize: 11.5),
+      border: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: kLine),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: cardText.withAlpha(45)),
+      enabledBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: kLine),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: scheme.primary, width: 1.5),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: kSafetyOrange, width: 1.5),
+      ),
+      errorBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: kDangerRed),
+      ),
+      focusedErrorBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: kDangerRed, width: 1.5),
       ),
     ),
-    navigationBarTheme: NavigationBarThemeData(
-      height: 68,
-      backgroundColor: card,
-      surfaceTintColor: Colors.transparent,
-      indicatorColor: scheme.primary.withAlpha(36),
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        return IconThemeData(
-          color: states.contains(WidgetState.selected)
-              ? scheme.primary
-              : cardText,
-        );
-      }),
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        return TextStyle(
-          color: states.contains(WidgetState.selected)
-              ? scheme.primary
-              : cardSecondary,
-          fontSize: 12,
-          fontWeight: states.contains(WidgetState.selected)
-              ? FontWeight.w600
-              : FontWeight.w400,
-        );
-      }),
+    filledButtonTheme: FilledButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(1)),
+          ),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.disabled) ? kGraphite : kSafetyOrange,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled) ? kSteel : kInk,
+        ),
+        overlayColor: WidgetStatePropertyAll(kChalk.withAlpha(20)),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+        ),
+        elevation: const WidgetStatePropertyAll(0),
+      ),
     ),
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: scheme.primary,
-      foregroundColor: contrastColor(scheme.primary),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        ),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(1)),
+          ),
+        ),
+        foregroundColor: const WidgetStatePropertyAll(kChalk),
+        side: const WidgetStatePropertyAll(BorderSide(color: kLine)),
+        overlayColor: WidgetStatePropertyAll(kSafetyOrange.withAlpha(22)),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 40)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        ),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(1)),
+          ),
+        ),
+        foregroundColor: const WidgetStatePropertyAll(kSafetyOrange),
+        overlayColor: WidgetStatePropertyAll(kSafetyOrange.withAlpha(20)),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(1)),
+          ),
+        ),
+        foregroundColor: const WidgetStatePropertyAll(kChalk),
+        overlayColor: WidgetStatePropertyAll(kSafetyOrange.withAlpha(20)),
+      ),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: cardBrightness == Brightness.dark
-          ? const Color(0xFFEDF2FF)
-          : const Color(0xFF222A36),
-      contentTextStyle: TextStyle(
-        color: cardBrightness == Brightness.dark ? Colors.black : Colors.white,
+      backgroundColor: kGraphite,
+      contentTextStyle: const TextStyle(
+        color: kChalk,
+        fontSize: 13,
+        height: 1.4,
       ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(1)),
+        side: BorderSide(color: kLine),
+      ),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      elevation: 0,
     ),
     textSelectionTheme: TextSelectionThemeData(
-      cursorColor: scheme.primary,
-      selectionColor: scheme.primary.withAlpha(60),
-      selectionHandleColor: scheme.primary,
+      cursorColor: kSafetyOrange,
+      selectionColor: kSafetyOrange.withAlpha(55),
+      selectionHandleColor: kSafetyOrange,
     ),
-    dividerTheme: DividerThemeData(
-      color: cardText.withAlpha(32),
-      thickness: 1,
-      space: 1,
+    dividerTheme: const DividerThemeData(color: kLine, thickness: 1, space: 1),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.selected)
+            ? kSafetyOrange
+            : Colors.transparent;
+      }),
+      checkColor: const WidgetStatePropertyAll(kInk),
+      side: const BorderSide(color: kSteel, width: 1.2),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(1)),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
     ),
-  );
-
-  return base.copyWith(
-    textTheme: base.textTheme.apply(
-      bodyColor: pageText,
-      displayColor: pageText,
+    chipTheme: ChipThemeData(
+      backgroundColor: Colors.transparent,
+      selectedColor: kSafetyOrange.withAlpha(28),
+      disabledColor: Colors.transparent,
+      side: const BorderSide(color: kLine),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(1)),
+      ),
+      labelStyle: const TextStyle(color: kChalk, fontSize: 12.5),
+      secondaryLabelStyle: const TextStyle(color: kChalk, fontSize: 12.5),
+      checkmarkColor: kSafetyOrange,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      showCheckmark: false,
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(1)),
+          ),
+        ),
+        side: const WidgetStatePropertyAll(BorderSide(color: kLine)),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected)
+              ? kGraphite
+              : Colors.transparent;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected) ? kChalk : kSteel;
+        }),
+        overlayColor: WidgetStatePropertyAll(kSafetyOrange.withAlpha(18)),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: kGraphite,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(1)),
+        side: BorderSide(color: kLine),
+      ),
+      textStyle: const TextStyle(color: kChalk, fontSize: 14),
+    ),
+    listTileTheme: const ListTileThemeData(
+      iconColor: kSteel,
+      textColor: kChalk,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      minVerticalPadding: 12,
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: const BoxDecoration(
+        color: kGraphite,
+        border: Border.fromBorderSide(BorderSide(color: kLine)),
+      ),
+      textStyle: const TextStyle(color: kChalk, fontSize: 12),
+      waitDuration: const Duration(milliseconds: 300),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: kSafetyOrange,
+      linearTrackColor: kLine,
+      circularTrackColor: kLineSoft,
+    ),
+    datePickerTheme: const DatePickerThemeData(
+      backgroundColor: kCarbon,
+      surfaceTintColor: Colors.transparent,
+      headerBackgroundColor: kInk,
+      headerForegroundColor: kChalk,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(2)),
+        side: BorderSide(color: kLine),
+      ),
+    ),
+    scrollbarTheme: ScrollbarThemeData(
+      thumbColor: const WidgetStatePropertyAll(kSteel),
+      radius: Radius.zero,
+      thickness: const WidgetStatePropertyAll(2),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      height: 56,
+      backgroundColor: kInk,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: Colors.transparent,
+      elevation: 0,
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: kSafetyOrange,
+      foregroundColor: kInk,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(1)),
+      ),
     ),
   );
 }
 
-Color _tint(Color base, Color text, int alpha) {
-  return Color.alphaBlend(text.withAlpha(alpha), base);
+TextTheme _ledgerTextTheme() {
+  final base = Typography.material2021(platform: TargetPlatform.android).white;
+  const tabular = [ui.FontFeature.tabularFigures()];
+  return base
+      .copyWith(
+        displayLarge: base.displayLarge?.copyWith(
+          fontFamily: kDisplayFont,
+          fontSize: 54,
+          fontWeight: FontWeight.w700,
+          height: 0.98,
+          letterSpacing: -1.8,
+          fontFeatures: tabular,
+          color: kChalk,
+        ),
+        displayMedium: base.displayMedium?.copyWith(
+          fontFamily: kDisplayFont,
+          fontSize: 42,
+          fontWeight: FontWeight.w700,
+          height: 1.0,
+          letterSpacing: -1.2,
+          fontFeatures: tabular,
+          color: kChalk,
+        ),
+        displaySmall: base.displaySmall?.copyWith(
+          fontFamily: kDisplayFont,
+          fontSize: 34,
+          fontWeight: FontWeight.w700,
+          height: 1.05,
+          letterSpacing: -0.8,
+          fontFeatures: tabular,
+          color: kChalk,
+        ),
+        headlineLarge: base.headlineLarge?.copyWith(
+          fontFamily: kDisplayFont,
+          fontSize: 30,
+          fontWeight: FontWeight.w700,
+          height: 1.1,
+          color: kChalk,
+        ),
+        headlineMedium: base.headlineMedium?.copyWith(
+          fontFamily: kDisplayFont,
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          height: 1.15,
+          color: kChalk,
+        ),
+        headlineSmall: base.headlineSmall?.copyWith(
+          fontFamily: kDisplayFont,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+          color: kChalk,
+        ),
+        titleLarge: base.titleLarge?.copyWith(
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          height: 1.3,
+          color: kChalk,
+        ),
+        titleMedium: base.titleMedium?.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.35,
+          color: kChalk,
+        ),
+        titleSmall: base.titleSmall?.copyWith(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          height: 1.35,
+          color: kChalk,
+        ),
+        bodyLarge: base.bodyLarge?.copyWith(
+          fontSize: 16,
+          height: 1.6,
+          color: kChalk,
+        ),
+        bodyMedium: base.bodyMedium?.copyWith(
+          fontSize: 14.5,
+          height: 1.6,
+          color: kChalk,
+        ),
+        bodySmall: base.bodySmall?.copyWith(
+          fontSize: 12.5,
+          height: 1.55,
+          color: kSteel,
+        ),
+        labelLarge: base.labelLarge?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+          color: kChalk,
+        ),
+        labelMedium: base.labelMedium?.copyWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          height: 1.2,
+          color: kSteel,
+        ),
+        labelSmall: base.labelSmall?.copyWith(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w500,
+          height: 1.2,
+          letterSpacing: 0.4,
+          color: kSteel,
+        ),
+      )
+      .apply(bodyColor: kChalk, displayColor: kChalk);
 }
 
-/// 自定义图片/纯色全局背景。只在自定义主题下使用。
+// Compatibility wrappers: the app is dark-only from v2.0.0.
+ThemeData buildDefaultLightTheme() => buildLedgerTheme();
+ThemeData buildDefaultDarkTheme() => buildLedgerTheme();
+ThemeData buildCustomTheme(ThemeSettings settings) => buildLedgerTheme();
+
+Color pageScrimColor(BuildContext context) {
+  return Theme.of(context).extension<PageScrimTheme>()?.color ?? kInk;
+}
+
+ThemeData cardTheme(BuildContext context) {
+  return Theme.of(context).copyWith(cardColor: kGraphite);
+}
+
+/// Optional custom photo background retained for old settings data.
 class AppBackground extends StatelessWidget {
   const AppBackground({super.key, required this.settings, required this.child});
 
@@ -220,20 +497,13 @@ class AppBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = Color(settings.backgroundColorValue);
     final imageFile = File(settings.backgroundImagePath);
     final hasImage =
         settings.useBackgroundImage &&
         settings.backgroundImagePath.isNotEmpty &&
         imageFile.existsSync();
-
-    if (!settings.useBackgroundImage) {
-      return ColoredBox(color: background, child: child);
-    }
     if (!hasImage) {
-      // 图片模式已开启但文件暂时不可用：仍保持深色底，避免白色页面文字
-      // 落在浅色纯色背景上而看不清。
-      return ColoredBox(color: Colors.black, child: child);
+      return ColoredBox(color: kInk, child: child);
     }
 
     Widget image = Image.file(
@@ -241,7 +511,7 @@ class AppBackground extends StatelessWidget {
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black),
+      errorBuilder: (_, __, ___) => const ColoredBox(color: kInk),
     );
     if (settings.backgroundImageBlur > 0) {
       image = ImageFiltered(
@@ -260,30 +530,15 @@ class AppBackground extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 图片模式使用独立的深色底，不读取卡片背景色。
-        const ColoredBox(color: Colors.black),
+        const ColoredBox(color: kInk),
         image,
-        // 中性的深色遮罩，只服务于文字可读性，不参与卡片配色。
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withAlpha(120),
-                Colors.black.withAlpha(70),
-                Colors.black.withAlpha(145),
-              ],
-            ),
-          ),
-        ),
+        const ColoredBox(color: Color(0xCC0A0B0C)),
         child,
       ],
     );
   }
 }
 
-/// 页面顶部/底部渐变蒙层使用的基准色。
 class PageScrimTheme extends ThemeExtension<PageScrimTheme> {
   const PageScrimTheme({required this.color});
 
@@ -302,41 +557,4 @@ class PageScrimTheme extends ThemeExtension<PageScrimTheme> {
     if (other is! PageScrimTheme) return this;
     return PageScrimTheme(color: Color.lerp(color, other.color, t) ?? color);
   }
-}
-
-Color pageScrimColor(BuildContext context) {
-  final theme = Theme.of(context);
-  return theme.extension<PageScrimTheme>()?.color ??
-      theme.scaffoldBackgroundColor;
-}
-
-/// 卡片内部主题：按卡片底色自动选择文字深浅。
-ThemeData cardTheme(BuildContext context) {
-  final theme = Theme.of(context);
-  final card = theme.cardColor;
-  final text = contrastColor(card);
-  final secondary = secondaryTextColor(card);
-  final brightness = ThemeData.estimateBrightnessForColor(card);
-  final scheme =
-      ColorScheme.fromSeed(
-        seedColor: kPrimaryBlue,
-        brightness: brightness,
-      ).copyWith(
-        primary: brightness == Brightness.dark
-            ? const Color(0xFF9CC4FF)
-            : kPrimaryBlue,
-        secondary: kWarmYellow,
-        error: kDangerRed,
-        surface: card,
-        onSurface: text,
-        onSurfaceVariant: secondary,
-        outlineVariant: text.withAlpha(42),
-        outline: text.withAlpha(90),
-      );
-  return theme.copyWith(
-    colorScheme: scheme,
-    textTheme: theme.textTheme.apply(bodyColor: text, displayColor: text),
-    iconTheme: theme.iconTheme.copyWith(color: text),
-    dividerColor: text.withAlpha(32),
-  );
 }

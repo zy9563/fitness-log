@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme.dart';
+
 /// 部位自由输入 + 历史联想。
 ///
 /// 不做强制枚举，历史值只作为快捷标签；用户可输入任意组合文本。
@@ -47,17 +49,18 @@ class _BodyPartFieldState extends State<BodyPartField> {
         .where((item) => item.trim().isNotEmpty)
         .take(16)
         .toList();
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextFormField(
           controller: widget.controller,
           maxLength: 50,
+          style: const TextStyle(fontSize: 16, letterSpacing: 0.2),
           decoration: const InputDecoration(
-            labelText: '部位',
             hintText: '例如：胸，三头',
             counterText: '',
-            suffixIcon: Icon(Icons.expand_more),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 13),
           ),
           validator:
               widget.validator ??
@@ -67,29 +70,44 @@ class _BodyPartFieldState extends State<BodyPartField> {
               },
         ),
         if (suggestions.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 9),
           Text(
             '历史部位',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: kSteel,
+              letterSpacing: 1.6,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Wrap(
             spacing: 6,
-            runSpacing: 2,
+            runSpacing: 6,
             children: [
               for (final item in suggestions)
-                ActionChip(
-                  label: Text(item),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () {
+                InkWell(
+                  onTap: () {
                     widget.controller.text = item;
                     widget.controller.selection = TextSelection.collapsed(
                       offset: item.length,
                     );
                     setState(() => _query = item);
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: kLine),
+                      color: _query == item ? kGraphite : Colors.transparent,
+                    ),
+                    child: Text(
+                      item,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: _query == item ? kChalk : kSteel,
+                      ),
+                    ),
+                  ),
                 ),
             ],
           ),

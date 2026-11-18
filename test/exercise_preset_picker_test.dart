@@ -135,11 +135,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final tile = tester.widget<CheckboxListTile>(
-      find.widgetWithText(CheckboxListTile, '卧推'),
-    );
-    expect(tile.onChanged, isNull);
-    expect(find.text('今天已添加，无需重复勾选'), findsOneWidget);
+    expect(find.text('卧推'), findsOneWidget);
+    expect(find.text('已添加'), findsOneWidget);
+    await tester.tap(find.text('卧推'));
+    await tester.pump();
     expect(find.text('勾选动作后可批量加入今天'), findsOneWidget);
   });
 }

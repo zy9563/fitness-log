@@ -10,8 +10,7 @@ import '../../core/weight.dart';
 import '../../data/fitness_store.dart';
 import '../../data/models/training_entry.dart';
 import '../../data/models/training_set.dart';
-import '../../widgets/app_widgets.dart';
-import '../../widgets/edge_fade_list_view.dart';
+import '../../widgets/ledger.dart';
 
 enum _StatsRange { week, month, year }
 
@@ -64,334 +63,302 @@ class _StatsPageState extends State<StatsPage> {
     );
     final buckets = _buckets(period, setsInPeriod);
     final canGoNext = _pageOffset < 0;
+    final theme = Theme.of(context);
 
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text('统计')),
-      body: EdgeFadeListView(
-        padding: EdgeInsets.fromLTRB(16, topInset, 16, 120),
-        topFadeHeight: topInset + 16,
-        bottomFadeHeight: 130,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<_StatsRange>(
-              segments: const [
-                ButtonSegment(
-                  value: _StatsRange.week,
-                  label: Text('周'),
-                  icon: Icon(Icons.view_week_outlined),
-                ),
-                ButtonSegment(
-                  value: _StatsRange.month,
-                  label: Text('月'),
-                  icon: Icon(Icons.calendar_view_month_outlined),
-                ),
-                ButtonSegment(
-                  value: _StatsRange.year,
-                  label: Text('年'),
-                  icon: Icon(Icons.calendar_today_outlined),
-                ),
-              ],
-              selected: {_range},
-              onSelectionChanged: (value) {
+      backgroundColor: kInk,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+          children: [
+            Text(
+              '统计',
+              style: theme.textTheme.displayMedium?.copyWith(fontSize: 40),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '只统计已经写下的重量与组。片 / kg / lb 分开累计。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: kSteel,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _RangeTabs(
+              value: _range,
+              onChanged: (value) {
                 _stopHold();
                 setState(() {
-                  _range = value.first;
+                  _range = value;
                   _pageOffset = 0;
                   _selectedDay = null;
                   _selectedMonth = null;
                 });
               },
             ),
-          ),
-          const SizedBox(height: 10),
-          AppInfoBanner(
-            icon: Icons.info_outline,
-            text: _range == _StatsRange.week
-                ? '统计口径：当前周（周一至周日），柱状图按天显示是否训练。点击柱子查看当天累计容量。'
-                : _range == _StatsRange.month
-                ? '统计口径：当前自然月，柱状图按天显示是否训练。点击柱子查看当天累计容量。'
-                : '统计口径：当前自然年，柱状图按月汇总训练天数。点击月份后选择具体日期查看当天容量。',
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _MetricCard(
-                value: '${trainingDates.length}',
-                label: '训练天数',
-                icon: Icons.event_available_outlined,
-              ),
-              const SizedBox(width: 8),
-              _MetricCard(
-                value: '$totalGroups',
-                label: '总组数',
-                icon: Icons.layers_outlined,
-              ),
-              const SizedBox(width: 8),
-              _MetricCard(
-                value: '$totalReps',
-                label: '总次数',
-                icon: Icons.repeat,
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          AppSectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 22),
+            Row(
               children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragEnd: _handleSwipe,
-                  child: Row(
+                _MetricStat(value: '${trainingDates.length}', label: '训练天数'),
+                const _MetricDivider(),
+                _MetricStat(value: '$totalGroups', label: '总组数'),
+                const _MetricDivider(),
+                _MetricStat(value: '$totalReps', label: '总次数'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Container(
+              decoration: const BoxDecoration(
+                color: kCarbon,
+                border: Border(
+                  top: BorderSide(color: kSafetyOrange, width: 1.5),
+                  bottom: BorderSide(color: kLine),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      _StatsPeriodArrow(
-                        icon: Icons.chevron_left,
-                        tooltip: '上一页',
-                        enabled: true,
+                      LedgerArrow(
+                        left: true,
                         onTap: () => _changePeriod(-1),
-                        onHoldStart: () => _startHold(-1),
-                        onHoldEnd: _stopHold,
+                        onLongPressStart: () => _startHold(-1),
+                        onLongPressEnd: _stopHold,
+                        onLongPressCancel: _stopHold,
                       ),
                       Expanded(
                         child: Column(
                           children: [
                             Text(
                               '训练天数',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               _periodLabel(period),
-                              style: Theme.of(context).textTheme.labelSmall,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: kSteel,
+                                letterSpacing: 0.6,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      _StatsPeriodArrow(
-                        icon: Icons.chevron_right,
-                        tooltip: '下一页',
+                      LedgerArrow(
+                        left: false,
                         enabled: canGoNext,
                         onTap: () => _changePeriod(1),
-                        onHoldStart: () => _startHold(1),
-                        onHoldEnd: _stopHold,
+                        onLongPressStart: () => _startHold(1),
+                        onLongPressEnd: _stopHold,
+                        onLongPressCancel: _stopHold,
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragEnd: _handleSwipe,
-                  child: SizedBox(
-                    height: 195,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final plotWidth = (constraints.maxWidth - 24).clamp(
-                          1.0,
-                          4000.0,
-                        );
-                        return GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (details) {
-                            final dx = (details.localPosition.dx - 24).clamp(
-                              0.0,
-                              plotWidth,
-                            );
-                            final index =
-                                (dx / plotWidth * buckets.items.length)
-                                    .floor()
-                                    .clamp(0, buckets.items.length - 1);
-                            _onBarTap(index, period, buckets);
-                          },
-                          child: BarChart(
-                            BarChartData(
-                              minY: 0,
-                              maxY: buckets.maxValue < 1
-                                  ? 1
-                                  : buckets.maxValue.toDouble(),
-                              alignment: BarChartAlignment.spaceAround,
-                              barTouchData: BarTouchData(
-                                enabled: true,
-                                touchCallback: (event, response) {
-                                  if (event is FlTapUpEvent &&
-                                      response?.spot != null) {
-                                    _onBarTap(
-                                      response!.spot!.touchedBarGroupIndex,
-                                      period,
-                                      buckets,
-                                    );
-                                  }
-                                },
-                                touchTooltipData: BarTouchTooltipData(
-                                  getTooltipItem:
-                                      (group, groupIndex, rod, rodIndex) {
-                                        final bucket = buckets.items[group.x];
-                                        return BarTooltipItem(
-                                          '${bucket.tooltip}\n${rod.toY.toInt()} 天',
-                                          TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurface,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragEnd: _handleSwipe,
+                    child: SizedBox(
+                      height: 195,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final plotWidth = (constraints.maxWidth - 24).clamp(
+                            1.0,
+                            4000.0,
+                          );
+                          return GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTapUp: (details) {
+                              final dx = (details.localPosition.dx - 24).clamp(
+                                0.0,
+                                plotWidth,
+                              );
+                              final index =
+                                  (dx / plotWidth * buckets.items.length)
+                                      .floor()
+                                      .clamp(0, buckets.items.length - 1);
+                              _onBarTap(index, period, buckets);
+                            },
+                            child: BarChart(
+                              BarChartData(
+                                minY: 0,
+                                maxY: buckets.maxValue < 1
+                                    ? 1
+                                    : buckets.maxValue.toDouble(),
+                                alignment: BarChartAlignment.spaceAround,
+                                barTouchData: BarTouchData(
+                                  enabled: true,
+                                  touchCallback: (event, response) {
+                                    if (event is FlTapUpEvent &&
+                                        response?.spot != null) {
+                                      _onBarTap(
+                                        response!.spot!.touchedBarGroupIndex,
+                                        period,
+                                        buckets,
+                                      );
+                                    }
+                                  },
+                                  touchTooltipData: BarTouchTooltipData(
+                                    getTooltipItem:
+                                        (group, groupIndex, rod, rodIndex) {
+                                          final bucket = buckets.items[group.x];
+                                          return BarTooltipItem(
+                                            '${bucket.tooltip}\n'
+                                            '${rod.toY.toInt()} 天',
+                                            TextStyle(
+                                              color: kChalk,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          );
+                                        },
+                                  ),
+                                ),
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  horizontalInterval: buckets.maxValue > 7
+                                      ? 5
+                                      : 1,
+                                  getDrawingHorizontalLine: (value) =>
+                                      const FlLine(
+                                        color: kLineSoft,
+                                        strokeWidth: 1,
+                                      ),
+                                ),
+                                titlesData: FlTitlesData(
+                                  topTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  rightTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 24,
+                                      interval: buckets.maxValue > 7 ? 5 : 1,
+                                      getTitlesWidget: (value, meta) => Text(
+                                        value.toInt().toString(),
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(color: kSteel),
+                                      ),
+                                    ),
+                                  ),
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 28,
+                                      getTitlesWidget: (value, meta) {
+                                        final index = value.toInt();
+                                        if (index < 0 ||
+                                            index >= buckets.items.length) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        final item = buckets.items[index];
+                                        if (!item.showLabel) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 5,
+                                          ),
+                                          child: Text(
+                                            item.label,
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                  fontSize: 9,
+                                                  color: kSteel,
+                                                ),
                                           ),
                                         );
                                       },
-                                ),
-                              ),
-                              gridData: FlGridData(
-                                show: true,
-                                drawVerticalLine: false,
-                                horizontalInterval: buckets.maxValue > 7
-                                    ? 5
-                                    : 1,
-                                getDrawingHorizontalLine: (value) => FlLine(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.outlineVariant.withAlpha(70),
-                                  strokeWidth: 1,
-                                ),
-                              ),
-                              titlesData: FlTitlesData(
-                                topTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false),
-                                ),
-                                rightTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false),
-                                ),
-                                leftTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 24,
-                                    interval: buckets.maxValue > 7 ? 5 : 1,
-                                    getTitlesWidget: (value, meta) => Text(
-                                      value.toInt().toString(),
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.labelSmall,
                                     ),
                                   ),
                                 ),
-                                bottomTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 28,
-                                    getTitlesWidget: (value, meta) {
-                                      final index = value.toInt();
-                                      if (index < 0 ||
-                                          index >= buckets.items.length) {
-                                        return const SizedBox.shrink();
-                                      }
-                                      final item = buckets.items[index];
-                                      if (!item.showLabel) {
-                                        return const SizedBox.shrink();
-                                      }
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 5),
-                                        child: Text(
-                                          item.label,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall
-                                              ?.copyWith(fontSize: 9),
+                                borderData: FlBorderData(show: false),
+                                barGroups: [
+                                  for (var i = 0; i < buckets.items.length; i++)
+                                    BarChartGroupData(
+                                      x: i,
+                                      barRods: [
+                                        BarChartRodData(
+                                          toY: buckets.items[i].value
+                                              .toDouble(),
+                                          width: buckets.items.length > 20
+                                              ? 6
+                                              : 18,
+                                          borderRadius: BorderRadius.circular(
+                                            1,
+                                          ),
+                                          color:
+                                              _isSelectedBucket(
+                                                buckets.items[i],
+                                              )
+                                              ? kChalk
+                                              : (buckets.items[i].value > 0
+                                                    ? kSafetyOrange
+                                                    : kLine),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                ),
+                                      ],
+                                    ),
+                                ],
                               ),
-                              borderData: FlBorderData(show: false),
-                              barGroups: [
-                                for (var i = 0; i < buckets.items.length; i++)
-                                  BarChartGroupData(
-                                    x: i,
-                                    barRods: [
-                                      BarChartRodData(
-                                        toY: buckets.items[i].value.toDouble(),
-                                        width: buckets.items.length > 20
-                                            ? 6
-                                            : 18,
-                                        borderRadius: BorderRadius.circular(4),
-                                        color:
-                                            _isSelectedBucket(buckets.items[i])
-                                            ? kWarmYellow
-                                            : kPrimaryBlue,
-                                      ),
-                                    ],
-                                  ),
-                              ],
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.swipe,
-                      size: 15,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '左右滑动翻页',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          );
+                        },
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (_range == _StatsRange.year && _selectedMonth != null)
-            _YearDayPicker(
-              month: _selectedMonth!,
-              selectedDay: _selectedDay,
-              trainingDays: _trainingDaysInMonth(_selectedMonth!, setsInPeriod),
-              onSelected: (day) => setState(() => _selectedDay = day),
-            ),
-          if (_selectedDay == null)
-            AppSectionCard(
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.touch_app_outlined,
-                    color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _range == _StatsRange.year
-                          ? '点击上方月份，再选择具体日期，查看当天累计容量。'
-                          : '点击上方柱状图中的日期，查看当天累计容量。',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '左右滑动翻页  ·  长按箭头连续翻页',
+                    style: theme.textTheme.labelSmall?.copyWith(color: kSteel),
                   ),
                 ],
               ),
-            )
-          else
-            _DailyVolume(
-              day: _selectedDay!,
-              entries: entriesInPeriod,
-              store: store,
             ),
-          const SizedBox(height: 8),
-          AppInfoBanner(
-            icon: Icons.calculate_outlined,
-            text:
-                '累计容量：每行组的“重量 × 组数 × 次数”求和；'
-                '不同动作分开显示，片 / kg / lb 不互相换算。'
-                '未填写或未识别重量不计入。',
-          ),
-        ],
+            if (_range == _StatsRange.year && _selectedMonth != null)
+              _YearDayPicker(
+                month: _selectedMonth!,
+                selectedDay: _selectedDay,
+                trainingDays: _trainingDaysInMonth(
+                  _selectedMonth!,
+                  setsInPeriod,
+                ),
+                onSelected: (day) => setState(() => _selectedDay = day),
+              ),
+            if (_selectedDay == null)
+              _ChartHint(
+                text: _range == _StatsRange.year
+                    ? '点击上方月份，再选择具体日期。'
+                    : '点击柱状图里的日期，查看当天容量。',
+              )
+            else
+              _DailyVolume(
+                day: _selectedDay!,
+                entries: entriesInPeriod,
+                store: store,
+              ),
+            const SizedBox(height: 20),
+            const LedgerRule(),
+            const SizedBox(height: 12),
+            Text(
+              '累计容量 = 重量 × 组数 × 次数。不同动作分开显示，'
+              '未填写或未识别重量的组不计入。',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: kSteel,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -619,91 +586,120 @@ class _Buckets {
   final int maxValue;
 }
 
-class _StatsPeriodArrow extends StatelessWidget {
-  const _StatsPeriodArrow({
-    required this.icon,
-    required this.tooltip,
-    required this.enabled,
-    required this.onTap,
-    required this.onHoldStart,
-    required this.onHoldEnd,
-  });
+class _RangeTabs extends StatelessWidget {
+  const _RangeTabs({required this.value, required this.onChanged});
 
-  final IconData icon;
-  final String tooltip;
-  final bool enabled;
-  final VoidCallback onTap;
-  final VoidCallback onHoldStart;
-  final VoidCallback onHoldEnd;
+  final _StatsRange value;
+  final ValueChanged<_StatsRange> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = enabled
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant.withAlpha(90);
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: tooltip,
-      child: Tooltip(
-        message: tooltip,
-        triggerMode: TooltipTriggerMode.manual,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: enabled ? onTap : null,
-          onLongPressStart: enabled ? (_) => onHoldStart() : null,
-          onLongPressEnd: enabled ? (_) => onHoldEnd() : null,
-          onLongPressCancel: enabled ? onHoldEnd : null,
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: enabled
-                  ? theme.colorScheme.primary.withAlpha(16)
-                  : Colors.transparent,
+    const entries = [
+      (_StatsRange.week, '周'),
+      (_StatsRange.month, '月'),
+      (_StatsRange.year, '年'),
+    ];
+    return Row(
+      children: [
+        for (final entry in entries)
+          Expanded(
+            child: InkWell(
+              onTap: () => onChanged(entry.$1),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: value == entry.$1 ? kSafetyOrange : kLine,
+                      width: value == entry.$1 ? 2 : 1,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  entry.$2,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: value == entry.$1 ? kChalk : kSteel,
+                    letterSpacing: 2,
+                    fontWeight: value == entry.$1
+                        ? FontWeight.w700
+                        : FontWeight.w400,
+                  ),
+                ),
+              ),
             ),
-            child: Icon(icon, color: color, size: 23),
           ),
-        ),
+      ],
+    );
+  }
+}
+
+class _MetricStat extends StatelessWidget {
+  const _MetricStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              fontSize: 30,
+              height: 1,
+              color: kChalk,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: kSteel, letterSpacing: 1.2),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.value,
-    required this.label,
-    required this.icon,
-  });
-
-  final String value;
-  final String label;
-  final IconData icon;
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: AppSectionCard(
-        margin: EdgeInsets.zero,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        child: Column(
-          children: [
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
-            const SizedBox(height: 5),
-            Text(
-              value,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(label, style: theme.textTheme.labelSmall),
-          ],
+    return Container(
+      width: 1,
+      height: 38,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      color: kLine,
+    );
+  }
+}
+
+class _ChartHint extends StatelessWidget {
+  const _ChartHint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: kLineSoft),
+          bottom: BorderSide(color: kLineSoft),
         ),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: kSteel),
       ),
     );
   }
@@ -724,30 +720,68 @@ class _YearDayPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppSectionCard(
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: kLineSoft),
+          bottom: BorderSide(color: kLineSoft),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '${month.year}年${month.month}月训练日',
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontSize: 15,
+              color: kChalk,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (trainingDays.isEmpty)
-            Text('这个月暂无训练记录', style: Theme.of(context).textTheme.bodySmall)
+            Text(
+              '这个月暂无训练记录。',
+              style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
+            )
           else
             Wrap(
-              spacing: 7,
-              runSpacing: 4,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 for (final day in trainingDays)
-                  ChoiceChip(
-                    label: Text('${day.day}日'),
-                    selected:
-                        selectedDay != null && isSameDate(selectedDay!, day),
-                    onSelected: (_) => onSelected(day),
+                  InkWell(
+                    onTap: () => onSelected(day),
+                    child: Container(
+                      width: 52,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color:
+                            selectedDay != null && isSameDate(selectedDay!, day)
+                            ? kSafetyOrange
+                            : Colors.transparent,
+                        border: Border.all(
+                          color:
+                              selectedDay != null &&
+                                  isSameDate(selectedDay!, day)
+                              ? kSafetyOrange
+                              : kLine,
+                        ),
+                      ),
+                      child: Text(
+                        '${day.day}日',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color:
+                              selectedDay != null &&
+                                  isSameDate(selectedDay!, day)
+                              ? kInk
+                              : kChalk,
+                        ),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -794,71 +828,83 @@ class _DailyVolume extends StatelessWidget {
         );
       }
     }
+    final theme = Theme.of(context);
 
-    return AppSectionCard(
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: kSafetyOrange, width: 1.5),
+          bottom: BorderSide(color: kLine),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Text(
                   '当日累计容量',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: theme.textTheme.titleMedium?.copyWith(fontSize: 17),
                 ),
               ),
               Text(
                 formatDate(day),
-                style: Theme.of(context).textTheme.labelMedium,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: kSteel,
+                  letterSpacing: 1,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '按动作分别计算，重量 × 组数 × 次数求和',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
           const SizedBox(height: 10),
           if (rows.isEmpty)
-            Text('当天没有可计算容量的重量数据', style: Theme.of(context).textTheme.bodySmall)
+            Text(
+              '当天没有可计算容量的重量数据。',
+              style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
+            )
           else
             for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: kLineSoft)),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       row.entry.exerciseName,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontSize: 15,
+                        color: kChalk,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       '${row.entry.bodyPart} · ${row.gymName}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: kSteel,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 5),
                     Wrap(
-                      spacing: 8,
+                      spacing: 12,
                       children: [
                         for (final unit in WeightUnit.values)
                           if ((row.volumes[unit] ?? 0) > 0)
                             Text(
                               '${formatWeight(row.volumes[unit])} ${unit.label}',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: kSafetyOrange,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
                             ),
                       ],
                     ),

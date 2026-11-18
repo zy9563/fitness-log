@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../core/app_exception.dart';
 import '../core/theme.dart' as app_theme;
-import 'edge_fade_list_view.dart';
 
+/// Empty state without a hero icon. A single steel rule marks the absence.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
-    required this.icon,
+    this.icon,
     required this.title,
     this.message,
     this.action,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final String title;
   final String? message;
   final Widget? action;
@@ -23,27 +23,26 @@ class EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 50, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 14),
+            Container(width: 34, height: 1, color: app_theme.kSteel),
+            const SizedBox(height: 16),
             Text(
               title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              textAlign: TextAlign.left,
+              style: theme.textTheme.headlineSmall?.copyWith(fontSize: 21),
             ),
             if (message != null) ...[
               const SizedBox(height: 8),
               Text(
                 message!,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.55,
+                textAlign: TextAlign.left,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: app_theme.kSteel,
+                  height: 1.65,
                 ),
               ),
             ],
@@ -55,26 +54,21 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// 统一卡片：圆角、细边、柔和阴影，并自动按卡片底色调整文字颜色。
+/// A full-bleed ledger section separated by 1px hairlines.
 ///
-/// 卡片背景会随它在页面中的位置计算一个 0~1 的不透明度：
-/// 越靠近 AppBar / 底部导航栏，背景越透明；离开边缘恢复不透明。
-/// 页面边缘的整体淡出由 EdgeFadeListView 负责。
-/// 统一卡片：圆角、细边、柔和阴影，并自动按卡片底色调整文字颜色。
-///
-/// 卡片背景透明度会根据它在页面中的位置动态变化：
-/// 靠近 AppBar / 底部导航栏时逐渐变透明，离开边缘恢复不透明。
-/// 页面级别的上下渐变蒙层由 [EdgeFadeListView] 负责，两者互不替代。
-class AppSectionCard extends StatefulWidget {
+/// The old card API is kept so secondary screens migrate without churn. The
+/// visual treatment is intentionally nothing like the v1 rounded card: no
+/// radius, no shadow, no edge fade; one orange cap for a primary section.
+class AppSectionCard extends StatelessWidget {
   const AppSectionCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.margin = const EdgeInsets.only(bottom: 12),
+    this.padding = const EdgeInsets.fromLTRB(0, 18, 0, 18),
+    this.margin = EdgeInsets.zero,
     this.onTap,
     this.elevated = false,
-    this.edgeFadeRange = 140,
-    this.minCardOpacity = 0.52,
+    this.edgeFadeRange = 0,
+    this.minCardOpacity = 1,
   });
 
   final Widget child;
@@ -83,140 +77,46 @@ class AppSectionCard extends StatefulWidget {
   final VoidCallback? onTap;
   final bool elevated;
 
-  /// 距离上下安全边缘多少像素开始衰减，越大过渡越长。
+  // Retained for source compatibility with v1 call sites; ignored by design.
   final double edgeFadeRange;
-
-  /// 卡片在边缘处的最低背景不透明度。
   final double minCardOpacity;
 
   @override
-  State<AppSectionCard> createState() => _AppSectionCardState();
-}
-
-class _AppSectionCardState extends State<AppSectionCard> {
-  final _cardKey = GlobalKey();
-  final _opacity = ValueNotifier<double>(1);
-  ScrollController? _scrollController;
-  ScrollPosition? _fallbackPosition;
-  bool _measureScheduled = false;
-  double _lastOpacity = 1;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final scope = EdgeFadeScope.maybeOf(context);
-    final controller = scope?.controller;
-    if (!identical(controller, _scrollController)) {
-      _scrollController?.removeListener(_onScroll);
-      _scrollController = controller;
-      _scrollController?.addListener(_onScroll);
-    }
-
-    // 详情页等不使用 EdgeFadeListView 的页面，回退到最近的 Scrollable。
-    final fallback = scope == null
-        ? Scrollable.maybeOf(context)?.position
-        : null;
-    if (!identical(fallback, _fallbackPosition)) {
-      _fallbackPosition?.removeListener(_onScroll);
-      _fallbackPosition = fallback;
-      _fallbackPosition?.addListener(_onScroll);
-    }
-    _scheduleMeasure();
-  }
-
-  @override
-  void dispose() {
-    _scrollController?.removeListener(_onScroll);
-    _fallbackPosition?.removeListener(_onScroll);
-    _opacity.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    _scheduleMeasure();
-  }
-
-  void _scheduleMeasure() {
-    if (_measureScheduled) return;
-    _measureScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _measureScheduled = false;
-      _measure();
-    });
-  }
-
-  void _measure() {
-    if (!mounted) return;
-    final box = _cardKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
-    final top = box.localToGlobal(Offset.zero).dy;
-    final center = top + box.size.height / 2;
-    final media = MediaQuery.of(context);
-    final topSafe = media.padding.top + kToolbarHeight + 6;
-    final bottomSafe = media.size.height - media.padding.bottom - 92;
-    final range = widget.edgeFadeRange <= 0 ? 1.0 : widget.edgeFadeRange;
-    final topFactor = ((center - topSafe) / range).clamp(0.0, 1.0);
-    final bottomFactor = ((bottomSafe - center) / range).clamp(0.0, 1.0);
-    final raw = topFactor < bottomFactor ? topFactor : bottomFactor;
-    final eased = raw * raw * (3 - 2 * raw);
-    final minOpacity = widget.minCardOpacity.clamp(0.0, 1.0);
-    final value = minOpacity + (1 - minOpacity) * eased;
-    if ((value - _lastOpacity).abs() < 0.01) return;
-    _lastOpacity = value;
-    _opacity.value = value;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final card = theme.cardColor;
-    final themed = Theme(
-      data: app_theme.cardTheme(context),
-      child: widget.child,
+    final content = Padding(
+      padding: padding,
+      child: Theme(data: app_theme.cardTheme(context), child: child),
     );
-    final content = Material(
-      color: Colors.transparent,
-      child: Padding(padding: widget.padding, child: themed),
-    );
-    final tappable = widget.onTap == null
-        ? content
-        : InkWell(onTap: widget.onTap, child: content);
 
-    return ValueListenableBuilder<double>(
-      valueListenable: _opacity,
-      builder: (context, opacity, _) {
-        final alpha = (255 * opacity).round();
-        final borderAlpha = (95 * opacity).round();
-        final shadowAlpha = (widget.elevated ? 14 : 8) * opacity;
-        return Padding(
-          key: _cardKey,
-          padding: widget.margin,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: card.withAlpha(alpha),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withAlpha(borderAlpha),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(shadowAlpha.round()),
-                  blurRadius: widget.elevated ? 18 : 12,
-                  offset: Offset(0, widget.elevated ? 7 : 4),
-                ),
-              ],
+    return Padding(
+      padding: margin,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: app_theme.kCarbon,
+          border: Border(
+            top: BorderSide(
+              color: elevated ? app_theme.kSafetyOrange : app_theme.kLine,
+              width: elevated ? 1.5 : 1,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: tappable,
-            ),
+            bottom: const BorderSide(color: app_theme.kLine),
           ),
-        );
-      },
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: onTap == null
+              ? content
+              : InkWell(
+                  onTap: onTap,
+                  overlayColor: const WidgetStatePropertyAll(Color(0x14FF4E12)),
+                  child: content,
+                ),
+        ),
+      ),
     );
   }
 }
 
+/// Informational strip: a 2px rail, not a tinted rounded card.
 class AppInfoBanner extends StatelessWidget {
   const AppInfoBanner({
     super.key,
@@ -233,34 +133,32 @@ class AppInfoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = app_theme.cardTheme(context);
-    final tint = color ?? theme.colorScheme.primary;
-    return Theme(
-      data: theme,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
-        decoration: BoxDecoration(
-          color: tint.withAlpha(18),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: tint.withAlpha(55)),
+    final theme = Theme.of(context);
+    final tint = color ?? app_theme.kSafetyOrange;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: app_theme.kInk,
+        border: Border(
+          left: BorderSide(color: tint, width: 2),
+          top: const BorderSide(color: app_theme.kLineSoft),
+          bottom: const BorderSide(color: app_theme.kLineSoft),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 20, color: tint),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                text,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  height: 1.55,
-                  color: theme.colorScheme.onSurface,
-                ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                height: 1.65,
+                color: app_theme.kSteel,
               ),
             ),
-            if (action != null) action!,
-          ],
-        ),
+          ),
+          if (action != null) ...[const SizedBox(width: 8), action!],
+        ],
       ),
     );
   }
@@ -277,25 +175,27 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 6, 2, 8),
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          Container(width: 3, height: 17, color: app_theme.kSafetyOrange),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: theme.textTheme.headlineSmall?.copyWith(fontSize: 21),
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     subtitle!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: app_theme.kSteel,
+                      height: 1.45,
                     ),
                   ),
                 ],
@@ -319,30 +219,96 @@ Future<bool> confirmAction(
 }) async {
   final result = await showDialog<bool>(
     context: context,
+    barrierColor: const Color(0xC0000000),
     builder: (dialogContext) {
-      return AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(cancelText),
-          ),
-          FilledButton(
-            style: destructive
-                ? FilledButton.styleFrom(
-                    backgroundColor: app_theme.kDangerRed,
-                    foregroundColor: Colors.white,
-                  )
-                : null,
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmText),
-          ),
-        ],
+      return _LedgerDialog(
+        title: title,
+        message: message,
+        confirmText: confirmText,
+        cancelText: cancelText,
+        destructive: destructive,
       );
     },
   );
   return result ?? false;
+}
+
+class _LedgerDialog extends StatelessWidget {
+  const _LedgerDialog({
+    required this.title,
+    required this.message,
+    required this.confirmText,
+    required this.cancelText,
+    required this.destructive,
+  });
+
+  final String title;
+  final String message;
+  final String confirmText;
+  final String cancelText;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 430),
+        decoration: const BoxDecoration(
+          color: app_theme.kCarbon,
+          border: Border(
+            top: BorderSide(color: app_theme.kSafetyOrange, width: 2),
+            left: BorderSide(color: app_theme.kLine),
+            right: BorderSide(color: app_theme.kLine),
+            bottom: BorderSide(color: app_theme.kLine),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.headlineSmall?.copyWith(fontSize: 23),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: app_theme.kSteel,
+                height: 1.65,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(cancelText),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  style: destructive
+                      ? FilledButton.styleFrom(
+                          backgroundColor: app_theme.kDangerRed,
+                          foregroundColor: app_theme.kInk,
+                        )
+                      : null,
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(confirmText),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 void showErrorSnack(BuildContext context, Object error) {

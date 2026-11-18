@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/date_x.dart';
 import '../../../core/exercise_group.dart';
+import '../../../core/theme.dart';
 import '../../../data/models/exercise_preset.dart';
-import '../../../widgets/app_widgets.dart';
-import '../../../widgets/exercise_group_badge.dart';
+import '../../../widgets/ledger.dart';
 
 class PresetPickerResult {
   const PresetPickerResult({
@@ -29,10 +29,15 @@ Future<PresetPickerResult?> showExercisePresetPicker({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    showDragHandle: true,
+    backgroundColor: kCarbon,
+    barrierColor: kInk.withAlpha(210),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
     builder: (sheetContext) {
-      return SizedBox(
-        height: MediaQuery.sizeOf(sheetContext).height * 0.88,
+      return Container(
+        height: MediaQuery.sizeOf(sheetContext).height * 0.9,
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: kSafetyOrange, width: 2)),
+        ),
         child: ExercisePresetPickerSheet(
           groupedPresets: groupedPresets,
           existingNames: existingNames,
@@ -83,11 +88,6 @@ class _ExercisePresetPickerSheetState extends State<ExercisePresetPickerSheet> {
   bool _isExisting(ExercisePreset preset) =>
       widget.existingNames.contains(normalizeLookupName(preset.name));
 
-  int _selectedInGroup(String group) =>
-      (widget.groupedPresets[group] ?? const [])
-          .where((preset) => _selectedIds.contains(preset.id))
-          .length;
-
   void _toggle(ExercisePreset preset) {
     if (_isExisting(preset)) return;
     setState(() {
@@ -114,8 +114,9 @@ class _ExercisePresetPickerSheetState extends State<ExercisePresetPickerSheet> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 8, 0),
+          padding: const EdgeInsets.fromLTRB(20, 16, 10, 10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -123,66 +124,95 @@ class _ExercisePresetPickerSheetState extends State<ExercisePresetPickerSheet> {
                   children: [
                     Text(
                       '选择动作',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontSize: 26,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       widget.bodyPart.isEmpty
                           ? '按肌群展开，可勾选多个动作'
-                          : '本次部位：${widget.bodyPart} · 可勾选多个动作',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                          : '本次部位：${widget.bodyPart} · 点选顺序即添加顺序',
+                      style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: '关闭',
+              TextButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
+                child: const Text('×'),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: AppSectionCard(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: EdgeInsets.zero,
-            minCardOpacity: 1,
-            child: ListTile(
-              leading: CircleAvatar(
-                radius: 18,
-                backgroundColor: theme.colorScheme.primary.withAlpha(24),
-                child: Icon(
-                  Icons.add,
-                  color: theme.colorScheme.primary,
-                  size: 20,
+        const LedgerRule(),
+        InkWell(
+          onTap: () =>
+              Navigator.pop(context, const PresetPickerResult(createNew: true)),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: kLineSoft)),
+            ),
+            child: Row(
+              children: [
+                const Text(
+                  '+',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: kSafetyOrange,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              title: const Text('临时新建动作'),
-              subtitle: const Text('不加入预设，直接填写动作'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.pop(
-                context,
-                const PresetPickerResult(createNew: true),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '临时新建动作',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontSize: 15,
+                          color: kChalk,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '不加入预设，直接填写动作',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: kSteel,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Text('›', style: TextStyle(fontSize: 20, color: kSteel)),
+              ],
             ),
           ),
         ),
-        const Divider(height: 1),
         Expanded(
           child: hasPresets
               ? ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                   children: [
-                    for (final group in kExerciseGroups)
-                      if ((widget.groupedPresets[group] ?? const []).isNotEmpty)
-                        _buildGroup(context, group),
+                    for (var i = 0; i < kExerciseGroups.length; i++)
+                      if ((widget.groupedPresets[kExerciseGroups[i]] ??
+                              const [])
+                          .isNotEmpty)
+                        _PickerGroup(
+                          key: PageStorageKey<String>(
+                            'picker-${kExerciseGroups[i]}',
+                          ),
+                          index: (i + 1).toString().padLeft(2, '0'),
+                          group: kExerciseGroups[i],
+                          items:
+                              widget.groupedPresets[kExerciseGroups[i]] ??
+                              const [],
+                          selectedIds: _selectedIds,
+                          isExisting: _isExisting,
+                          onToggle: _toggle,
+                        ),
                   ],
                 )
               : Center(
@@ -193,8 +223,8 @@ class _ExercisePresetPickerSheetState extends State<ExercisePresetPickerSheet> {
                       '可以先临时新建动作，或去“健身房”里添加预设。',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.5,
+                        color: kSteel,
+                        height: 1.6,
                       ),
                     ),
                   ),
@@ -205,106 +235,35 @@ class _ExercisePresetPickerSheetState extends State<ExercisePresetPickerSheet> {
     );
   }
 
-  Widget _buildGroup(BuildContext context, String group) {
-    final theme = Theme.of(context);
-    final items = widget.groupedPresets[group] ?? const <ExercisePreset>[];
-    final selectedCount = _selectedInGroup(group);
-    return AppSectionCard(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.zero,
-      minCardOpacity: 1,
-      child: Theme(
-        data: theme.copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          key: PageStorageKey<String>('preset-picker-group-$group'),
-          maintainState: true,
-          tilePadding: const EdgeInsets.only(left: 12, right: 8),
-          childrenPadding: const EdgeInsets.only(bottom: 4),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          leading: ExerciseGroupBadge(group: group, radius: 16),
-          title: Row(
-            children: [
-              Text(
-                group,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${items.length} 个',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              if (selectedCount > 0) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withAlpha(24),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '已选 $selectedCount',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          children: [
-            for (final preset in items)
-              _PresetCheckboxTile(
-                preset: preset,
-                group: group,
-                existing: _isExisting(preset),
-                selected: _selectedIds.contains(preset.id),
-                onChanged: () => _toggle(preset),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBottomBar(BuildContext context, int selectedCount) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      decoration: const BoxDecoration(
+        color: kCarbon,
+        border: Border(top: BorderSide(color: kLine)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               selectedCount == 0 ? '勾选动作后可批量加入今天' : '已选择 $selectedCount 个动作',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: selectedCount == 0
-                    ? theme.colorScheme.onSurfaceVariant
-                    : theme.colorScheme.primary,
-                fontWeight: selectedCount == 0
-                    ? FontWeight.w400
-                    : FontWeight.w600,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: selectedCount == 0 ? kSteel : kSafetyOrange,
+                letterSpacing: 0.4,
               ),
             ),
           ),
           const SizedBox(width: 12),
-          FilledButton.icon(
+          FilledButton(
             onPressed: selectedCount == 0 ? null : _confirm,
-            icon: const Icon(Icons.check, size: 18),
-            label: Text(selectedCount == 0 ? '添加动作' : '添加 $selectedCount 个'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(128, 44),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+            child: Text(selectedCount == 0 ? '添加动作' : '添加 $selectedCount 个'),
           ),
         ],
       ),
@@ -312,49 +271,188 @@ class _ExercisePresetPickerSheetState extends State<ExercisePresetPickerSheet> {
   }
 }
 
-class _PresetCheckboxTile extends StatelessWidget {
-  const _PresetCheckboxTile({
-    required this.preset,
+class _PickerGroup extends StatefulWidget {
+  const _PickerGroup({
+    super.key,
+    required this.index,
     required this.group,
+    required this.items,
+    required this.selectedIds,
+    required this.isExisting,
+    required this.onToggle,
+  });
+
+  final String index;
+  final String group;
+  final List<ExercisePreset> items;
+  final List<int> selectedIds;
+  final bool Function(ExercisePreset) isExisting;
+  final ValueChanged<ExercisePreset> onToggle;
+
+  @override
+  State<_PickerGroup> createState() => _PickerGroupState();
+}
+
+class _PickerGroupState extends State<_PickerGroup> {
+  bool _open = false;
+
+  int get _selectedCount => widget.items
+      .where((preset) => widget.selectedIds.contains(preset.id))
+      .length;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: _open ? kSafetyOrange : kLine,
+            width: _open ? 1.5 : 1,
+          ),
+          bottom: const BorderSide(color: kLineSoft),
+        ),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            key: PageStorageKey<String>('preset-picker-group-${widget.group}'),
+            onTap: () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      widget.index,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: kSafetyOrange,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    widget.group,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontSize: 16,
+                      color: kChalk,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${widget.items.length} 个',
+                    style: theme.textTheme.labelSmall?.copyWith(color: kSteel),
+                  ),
+                  if (_selectedCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '已选 $_selectedCount',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: kSafetyOrange,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    _open ? '−' : '+',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      color: kSteel,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_open)
+            for (final preset in widget.items)
+              _PickerRow(
+                preset: preset,
+                existing: widget.isExisting(preset),
+                selected: widget.selectedIds.contains(preset.id),
+                onToggle: () => widget.onToggle(preset),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickerRow extends StatelessWidget {
+  const _PickerRow({
+    required this.preset,
     required this.existing,
     required this.selected,
-    required this.onChanged,
+    required this.onToggle,
   });
 
   final ExercisePreset preset;
-  final String group;
   final bool existing;
   final bool selected;
-  final VoidCallback onChanged;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final note = preset.note.trim();
-    final subtitle = existing
-        ? '今天已添加，无需重复勾选'
-        : note.isEmpty
-        ? '分组：$group'
-        : '分组：$group · $note';
-    return CheckboxListTile(
-      value: existing || selected,
-      onChanged: existing ? null : (_) => onChanged(),
-      controlAffinity: ListTileControlAffinity.leading,
-      contentPadding: const EdgeInsets.only(left: 14, right: 8),
-      dense: true,
-      title: Text(
-        preset.name,
-        style: theme.textTheme.bodyLarge?.copyWith(
-          color: existing ? theme.colorScheme.onSurfaceVariant : null,
-          fontWeight: FontWeight.w500,
+    return InkWell(
+      onTap: existing ? null : onToggle,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: kLineSoft)),
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+        child: Row(
+          children: [
+            LedgerCheck(
+              value: existing || selected,
+              onChanged: existing ? null : (_) => onToggle(),
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preset.name,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontSize: 15,
+                      color: existing
+                          ? kSteel
+                          : selected
+                          ? kSafetyOrange
+                          : kChalk,
+                    ),
+                  ),
+                  if (note.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: kSteel,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (existing)
+              const Text(
+                '已添加',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: kSteel,
+                  letterSpacing: 0.6,
+                ),
+              ),
+          ],
         ),
       ),
     );
