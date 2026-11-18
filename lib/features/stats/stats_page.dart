@@ -1,0 +1,783 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/date_x.dart';
+import '../../core/theme.dart';
+import '../../core/weight.dart';
+import '../../data/fitness_store.dart';
+import '../../data/models/training_entry.dart';
+import '../../data/models/training_set.dart';
+import '../../widgets/app_widgets.dart';
+import '../../widgets/edge_fade_list_view.dart';
+
+enum _StatsRange { week, month, year }
+
+class StatsPage extends StatefulWidget {
+  const StatsPage({super.key});
+
+  @override
+  State<StatsPage> createState() => _StatsPageState();
+}
+
+class _StatsPageState extends State<StatsPage> {
+  _StatsRange _range = _StatsRange.week;
+  int _pageOffset = 0;
+  DateTime? _selectedDay;
+  DateTime? _selectedMonth;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.watch<FitnessStore>();
+    final today = dateOnly(DateTime.now());
+    final period = _period(today);
+    final setsInPeriod = store.sets.where((set) {
+      final day = dateOnly(set.date);
+      return !day.isBefore(period.start) && !day.isAfter(period.end);
+    }).toList();
+    final entriesInPeriod = store.entries.where((entry) {
+      final day = dateOnly(entry.date);
+      return !day.isBefore(period.start) && !day.isAfter(period.end);
+    }).toList();
+    final trainingDates = <String>{};
+    for (final set in setsInPeriod) {
+      trainingDates.add(formatDate(set.date));
+    }
+    final totalGroups = setsInPeriod.fold<int>(
+      0,
+      (sum, set) => sum + set.groupCount,
+    );
+    final totalReps = setsInPeriod.fold<int>(
+      0,
+      (sum, set) => sum + set.groupCount * set.reps,
+    );
+    final buckets = _buckets(period, setsInPeriod);
+    final canGoNext = _pageOffset < 0;
+
+    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight + 12;
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(title: const Text('统计')),
+      body: EdgeFadeListView(
+        padding: EdgeInsets.fromLTRB(16, topInset, 16, 120),
+        topFadeHeight: topInset + 16,
+        bottomFadeHeight: 130,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<_StatsRange>(
+              segments: const [
+                ButtonSegment(
+                  value: _StatsRange.week,
+                  label: Text('周'),
+                  icon: Icon(Icons.view_week_outlined),
+                ),
+                ButtonSegment(
+                  value: _StatsRange.month,
+                  label: Text('月'),
+                  icon: Icon(Icons.calendar_view_month_outlined),
+                ),
+                ButtonSegment(
+                  value: _StatsRange.year,
+                  label: Text('年'),
+                  icon: Icon(Icons.calendar_today_outlined),
+                ),
+              ],
+              selected: {_range},
+              onSelectionChanged: (value) {
+                setState(() {
+                  _range = value.first;
+                  _pageOffset = 0;
+                  _selectedDay = null;
+                  _selectedMonth = null;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          AppInfoBanner(
+            icon: Icons.info_outline,
+            text: _range == _StatsRange.week
+                ? '统计口径：当前周（周一至周日），柱状图按天显示是否训练。点击柱子查看当天累计容量。'
+                : _range == _StatsRange.month
+                ? '统计口径：当前自然月，柱状图按天显示是否训练。点击柱子查看当天累计容量。'
+                : '统计口径：当前自然年，柱状图按月汇总训练天数。点击月份后选择具体日期查看当天容量。',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _MetricCard(
+                value: '${trainingDates.length}',
+                label: '训练天数',
+                icon: Icons.event_available_outlined,
+              ),
+              const SizedBox(width: 8),
+              _MetricCard(
+                value: '$totalGroups',
+                label: '总组数',
+                icon: Icons.layers_outlined,
+              ),
+              const SizedBox(width: 8),
+              _MetricCard(
+                value: '$totalReps',
+                label: '总次数',
+                icon: Icons.repeat,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          AppSectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragEnd: _handleSwipe,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: '上一页',
+                        onPressed: () => _changePeriod(-1),
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '训练天数',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              _periodLabel(period),
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '下一页',
+                        onPressed: canGoNext ? () => _changePeriod(1) : null,
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragEnd: _handleSwipe,
+                  child: SizedBox(
+                    height: 195,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final plotWidth = (constraints.maxWidth - 24).clamp(
+                          1.0,
+                          4000.0,
+                        );
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) {
+                            final dx = (details.localPosition.dx - 24).clamp(
+                              0.0,
+                              plotWidth,
+                            );
+                            final index =
+                                (dx / plotWidth * buckets.items.length)
+                                    .floor()
+                                    .clamp(0, buckets.items.length - 1);
+                            _onBarTap(index, period, buckets);
+                          },
+                          child: BarChart(
+                            BarChartData(
+                              minY: 0,
+                              maxY: buckets.maxValue < 1
+                                  ? 1
+                                  : buckets.maxValue.toDouble(),
+                              alignment: BarChartAlignment.spaceAround,
+                              barTouchData: BarTouchData(
+                                enabled: true,
+                                touchCallback: (event, response) {
+                                  if (event is FlTapUpEvent &&
+                                      response?.spot != null) {
+                                    _onBarTap(
+                                      response!.spot!.touchedBarGroupIndex,
+                                      period,
+                                      buckets,
+                                    );
+                                  }
+                                },
+                                touchTooltipData: BarTouchTooltipData(
+                                  getTooltipItem:
+                                      (group, groupIndex, rod, rodIndex) {
+                                        final bucket = buckets.items[group.x];
+                                        return BarTooltipItem(
+                                          '${bucket.tooltip}\n${rod.toY.toInt()} 天',
+                                          TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        );
+                                      },
+                                ),
+                              ),
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: false,
+                                horizontalInterval: buckets.maxValue > 7
+                                    ? 5
+                                    : 1,
+                                getDrawingHorizontalLine: (value) => FlLine(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outlineVariant.withAlpha(70),
+                                  strokeWidth: 1,
+                                ),
+                              ),
+                              titlesData: FlTitlesData(
+                                topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 24,
+                                    interval: buckets.maxValue > 7 ? 5 : 1,
+                                    getTitlesWidget: (value, meta) => Text(
+                                      value.toInt().toString(),
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.labelSmall,
+                                    ),
+                                  ),
+                                ),
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 28,
+                                    getTitlesWidget: (value, meta) {
+                                      final index = value.toInt();
+                                      if (index < 0 ||
+                                          index >= buckets.items.length) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      final item = buckets.items[index];
+                                      if (!item.showLabel) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 5),
+                                        child: Text(
+                                          item.label,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall
+                                              ?.copyWith(fontSize: 9),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              borderData: FlBorderData(show: false),
+                              barGroups: [
+                                for (var i = 0; i < buckets.items.length; i++)
+                                  BarChartGroupData(
+                                    x: i,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: buckets.items[i].value.toDouble(),
+                                        width: buckets.items.length > 20
+                                            ? 6
+                                            : 18,
+                                        borderRadius: BorderRadius.circular(4),
+                                        color:
+                                            _isSelectedBucket(buckets.items[i])
+                                            ? kWarmYellow
+                                            : kPrimaryBlue,
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.swipe,
+                      size: 15,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '左右滑动翻页',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (_range == _StatsRange.year && _selectedMonth != null)
+            _YearDayPicker(
+              month: _selectedMonth!,
+              selectedDay: _selectedDay,
+              trainingDays: _trainingDaysInMonth(_selectedMonth!, setsInPeriod),
+              onSelected: (day) => setState(() => _selectedDay = day),
+            ),
+          if (_selectedDay == null)
+            AppSectionCard(
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.touch_app_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _range == _StatsRange.year
+                          ? '点击上方月份，再选择具体日期，查看当天累计容量。'
+                          : '点击上方柱状图中的日期，查看当天累计容量。',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            _DailyVolume(
+              day: _selectedDay!,
+              entries: entriesInPeriod,
+              store: store,
+            ),
+          const SizedBox(height: 8),
+          AppInfoBanner(
+            icon: Icons.calculate_outlined,
+            text:
+                '累计容量：每行组的“重量 × 组数 × 次数”求和；'
+                '不同动作分开显示，片 / kg / lb 不互相换算。'
+                '未填写或未识别重量不计入。',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSwipe(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity < -200) {
+      if (_pageOffset < 0) _changePeriod(1);
+    } else if (velocity > 200) {
+      _changePeriod(-1);
+    }
+  }
+
+  void _changePeriod(int delta) {
+    final next = _pageOffset + delta;
+    if (next > 0) return;
+    setState(() {
+      _pageOffset = next;
+      _selectedDay = null;
+      _selectedMonth = null;
+    });
+  }
+
+  _Period _period(DateTime today) {
+    switch (_range) {
+      case _StatsRange.week:
+        final monday = dateOnly(
+          today.subtract(Duration(days: today.weekday - 1)),
+        );
+        final start = monday.add(Duration(days: _pageOffset * 7));
+        return _Period(start: start, end: start.add(const Duration(days: 6)));
+      case _StatsRange.month:
+        final start = DateTime(today.year, today.month + _pageOffset, 1);
+        final end = DateTime(start.year, start.month + 1, 0);
+        return _Period(start: start, end: end);
+      case _StatsRange.year:
+        final start = DateTime(today.year + _pageOffset, 1, 1);
+        final end = DateTime(start.year, 12, 31);
+        return _Period(start: start, end: end);
+    }
+  }
+
+  String _periodLabel(_Period period) {
+    switch (_range) {
+      case _StatsRange.week:
+        if (period.start.year == period.end.year) {
+          return '${period.start.year}年${period.start.month}月${period.start.day}日 - '
+              '${period.end.month}月${period.end.day}日';
+        }
+        return '${formatDate(period.start)} - ${formatDate(period.end)}';
+      case _StatsRange.month:
+        return '${period.start.year}年${period.start.month}月';
+      case _StatsRange.year:
+        return '${period.start.year}年';
+    }
+  }
+
+  _Buckets _buckets(_Period period, List<TrainingSet> sets) {
+    final items = <_Bucket>[];
+    final trainingDates = sets.map((set) => formatDate(set.date)).toSet();
+    switch (_range) {
+      case _StatsRange.week:
+        for (var i = 0; i < 7; i++) {
+          final day = period.start.add(Duration(days: i));
+          items.add(
+            _Bucket(
+              value: trainingDates.contains(formatDate(day)) ? 1 : 0,
+              label: weekdayZh(day).replaceAll('周', ''),
+              tooltip: '${formatDate(day)} ${weekdayZh(day)}',
+              date: day,
+              showLabel: true,
+            ),
+          );
+        }
+        break;
+      case _StatsRange.month:
+        final dayCount = period.end.day;
+        for (var i = 1; i <= dayCount; i++) {
+          final day = DateTime(period.start.year, period.start.month, i);
+          items.add(
+            _Bucket(
+              value: trainingDates.contains(formatDate(day)) ? 1 : 0,
+              label: '$i',
+              tooltip: formatDate(day),
+              date: day,
+              showLabel:
+                  i == 1 || i == dayCount || (i % 5 == 0 && i <= dayCount - 2),
+            ),
+          );
+        }
+        break;
+      case _StatsRange.year:
+        for (var month = 1; month <= 12; month++) {
+          final count = trainingDates.where((value) {
+            final date = DateTime.parse(value);
+            return date.year == period.start.year && date.month == month;
+          }).length;
+          items.add(
+            _Bucket(
+              value: count,
+              label: '$month月',
+              tooltip: '${period.start.year}年$month月',
+              month: month,
+              showLabel: true,
+            ),
+          );
+        }
+        break;
+    }
+    var maxValue = 1;
+    for (final item in items) {
+      if (item.value > maxValue) maxValue = item.value;
+    }
+    return _Buckets(items: items, maxValue: maxValue);
+  }
+
+  void _onBarTap(int index, _Period period, _Buckets buckets) {
+    if (index < 0 || index >= buckets.items.length) return;
+    final item = buckets.items[index];
+    if (_range == _StatsRange.year) {
+      final month = DateTime(period.start.year, item.month ?? 1, 1);
+      final trainingDays = _trainingDaysInMonth(
+        month,
+        context.read<FitnessStore>().sets,
+      );
+      DateTime? selected;
+      if (trainingDays.isNotEmpty) {
+        selected = trainingDays.last;
+      }
+      setState(() {
+        _selectedMonth = month;
+        _selectedDay = selected;
+      });
+    } else {
+      setState(() {
+        _selectedDay = item.date;
+        _selectedMonth = null;
+      });
+    }
+  }
+
+  bool _isSelectedBucket(_Bucket bucket) {
+    if (_range == _StatsRange.year) {
+      return _selectedMonth != null && _selectedMonth!.month == bucket.month;
+    }
+    return bucket.date != null &&
+        _selectedDay != null &&
+        isSameDate(bucket.date!, _selectedDay!);
+  }
+
+  List<DateTime> _trainingDaysInMonth(DateTime month, List<TrainingSet> sets) {
+    final result = <DateTime>[];
+    final seen = <String>{};
+    for (final set in sets) {
+      if (set.date.year != month.year || set.date.month != month.month) {
+        continue;
+      }
+      final key = formatDate(set.date);
+      if (seen.add(key)) result.add(dateOnly(set.date));
+    }
+    result.sort();
+    return result;
+  }
+}
+
+class _Period {
+  const _Period({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
+}
+
+class _Bucket {
+  const _Bucket({
+    required this.value,
+    required this.label,
+    required this.tooltip,
+    required this.showLabel,
+    this.date,
+    this.month,
+  });
+
+  final int value;
+  final String label;
+  final String tooltip;
+  final bool showLabel;
+  final DateTime? date;
+  final int? month;
+}
+
+class _Buckets {
+  const _Buckets({required this.items, required this.maxValue});
+
+  final List<_Bucket> items;
+  final int maxValue;
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: AppSectionCard(
+        margin: EdgeInsets.zero,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            const SizedBox(height: 5),
+            Text(
+              value,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(label, style: theme.textTheme.labelSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _YearDayPicker extends StatelessWidget {
+  const _YearDayPicker({
+    required this.month,
+    required this.selectedDay,
+    required this.trainingDays,
+    required this.onSelected,
+  });
+
+  final DateTime month;
+  final DateTime? selectedDay;
+  final List<DateTime> trainingDays;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${month.year}年${month.month}月训练日',
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          if (trainingDays.isEmpty)
+            Text('这个月暂无训练记录', style: Theme.of(context).textTheme.bodySmall)
+          else
+            Wrap(
+              spacing: 7,
+              runSpacing: 4,
+              children: [
+                for (final day in trainingDays)
+                  ChoiceChip(
+                    label: Text('${day.day}日'),
+                    selected:
+                        selectedDay != null && isSameDate(selectedDay!, day),
+                    onSelected: (_) => onSelected(day),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyVolume extends StatelessWidget {
+  const _DailyVolume({
+    required this.day,
+    required this.entries,
+    required this.store,
+  });
+
+  final DateTime day;
+  final List<TrainingEntry> entries;
+  final FitnessStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final dayEntries = entries
+        .where((entry) => isSameDate(entry.date, day))
+        .toList();
+    final rows = <_ActionVolume>[];
+    for (final entry in dayEntries) {
+      final sets = store.setsForEntry(entry.id);
+      final volumes = <WeightUnit, double>{};
+      for (final set in sets) {
+        final unit = WeightUnit.fromIndex(set.weightUnitIndex);
+        final value = set.weightValue;
+        if (unit == null || value == null) continue;
+        volumes[unit] =
+            (volumes[unit] ?? 0) + value * set.groupCount * set.reps;
+      }
+      if (volumes.isNotEmpty) {
+        rows.add(
+          _ActionVolume(
+            entry: entry,
+            gymName: store.gymById(entry.gymId)?.name ?? '未知健身房',
+            volumes: volumes,
+          ),
+        );
+      }
+    }
+
+    return AppSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '当日累计容量',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                formatDate(day),
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '按动作分别计算，重量 × 组数 × 次数求和',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            Text('当天没有可计算容量的重量数据', style: Theme.of(context).textTheme.bodySmall)
+          else
+            for (final row in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      row.entry.exerciseName,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '${row.entry.bodyPart} · ${row.gymName}',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final unit in WeightUnit.values)
+                          if ((row.volumes[unit] ?? 0) > 0)
+                            Text(
+                              '${formatWeight(row.volumes[unit])} ${unit.label}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionVolume {
+  const _ActionVolume({
+    required this.entry,
+    required this.gymName,
+    required this.volumes,
+  });
+
+  final TrainingEntry entry;
+  final String gymName;
+  final Map<WeightUnit, double> volumes;
+}

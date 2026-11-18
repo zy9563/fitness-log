@@ -1,0 +1,49 @@
+name: fitness_log
+description: 健身记录 - 纯离线当天训练记录 App
+publish_to: "none"
+version: 1.6.2+9
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 本地数据库：Isar 社区维护版（Isar 3 API）
+  isar_community: 3.4.1
+  isar_community_flutter_libs: 3.4.1
+
+  provider: ^6.1.2
+  excel: 4.0.6
+  table_calendar: 3.2.1
+  fl_chart: ^0.69.2
+
+  path_provider: 2.1.5
+  file_picker: 8.1.7
+  share_plus: ^10.1.4
+  permission_handler: ^11.3.1
+  flutter_colorpicker: ^1.1.0
+
+  path: ^1.9.1
+  intl: 0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  isar_community_generator: 3.4.1
+  build_runner: 2.11.0
+
+flutter:
+  uses-material-design: true
+
+
+
+
