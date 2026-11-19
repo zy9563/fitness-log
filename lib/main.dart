@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'core/app_security.dart';
 import 'core/theme.dart';
 import 'data/database.dart';
 import 'data/fitness_store.dart';
@@ -10,6 +11,7 @@ import 'data/theme_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppSecurity.verifySignature();
 
   try {
     await initializeDateFormatting('zh_CN');

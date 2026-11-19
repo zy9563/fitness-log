@@ -65,12 +65,14 @@ fitness_log/
 ├─ android/                          # Android 工程、下载目录原生通道、应用图标
 ├─ assets/
 │  ├─ app_icon.png                   # 1024 图标源文件（启动器已生成各密度）
+│  ├─ donation_code.jpg              # 内置赞赏码图片
 │  └─ fonts/                         # Noto Serif SC 700 + OFL 许可证
 ├─ lib/
 │  ├─ main.dart
 │  ├─ app.dart                       # MaterialApp + 单一暗色铁册主题
 │  ├─ core/
 │  │  ├─ app_exception.dart
+│  │  ├─ app_security.dart            # 启动签名校验（控制打赏入口）
 │  │  ├─ date_x.dart                 # 日期解析/格式
 │  │  ├─ exercise_group.dart         # 六个动作分组与旧数据自动归类
 │  │  ├─ input_formatters.dart
@@ -97,12 +99,15 @@ fitness_log/
 │  │  │  ├─ day_training_page.dart   # 当天动作、多行组、即时保存
 │  │  │  ├─ exercise_form_dialog.dart
 │  │  │  ├─ set_form_dialog.dart
-│  │  │  ├─ workout_complete_dialog.dart  # 训练完成白卡总结
+│  │  │  ├─ workout_complete_dialog.dart  # 训练完成总结弹窗
 │  │  │  └─ widgets/
 │  │  │     ├─ body_part_field.dart
 │  │  │     └─ exercise_preset_picker.dart  # 按肌群折叠的多选动作选择器
 │  │  ├─ history/
 │  │  │  ├─ history_page.dart
+│  │  │  ├─ body_part_history_page.dart    # 同部位往期训练
+│  │  │  ├─ workout_grouping.dart          # 日期 + 部位原文分组
+│  │  │  ├─ workout_group_card.dart        # 日期分组行式卡片
 │  │  │  └─ exercise_progress_page.dart
 │  │  ├─ stats/stats_page.dart       # fl_chart 柱状图
 │  │  ├─ gyms/
@@ -112,9 +117,12 @@ fitness_log/
 │  │  ├─ backup/
 │  │  │  ├─ import_page.dart
 │  │  │  └─ export_page.dart
+│  │  ├─ donate/donation_page.dart  # 内置赞赏码
 │  │  ├─ settings/theme_settings_page.dart
 │  │  └─ more/more_page.dart
-│  └─ widgets/app_widgets.dart
+│  └─ widgets/
+│     ├─ app_widgets.dart
+│     └─ ledger.dart                  # 铁册头部、方角按钮、勾选、弹窗
 ├─ test/
 ├─ tool/setup_android.ps1
 ├─ pubspec.yaml
@@ -423,19 +431,19 @@ flutter create --platforms=android --org com.example --project-name fitness_log 
 
 ```text
 dist/
-├─ 健身记录_v2.0.1.apk       # release 包，可直接侧载
+├─ 健身记录_v2.1.0.apk       # release 包，可直接侧载
 ├─ fitness_log_source.zip    # 完整源码（含 Android 工程、生成文件、图标、字体）
-└─ SHA256SUMS_v2.0.1.txt     # 校验值
+└─ SHA256SUMS_v2.1.0.txt     # 校验值
 ```
 
 APK 信息：
 
-- 版本：2.0.1（versionCode 12）
+- 版本：2.1.0（versionCode 13）
 - 包名：`com.example.fitness_log`
 - 应用名：健身记录
 - 签名：debug 签名（个人自用；发布前请换签名）
-- 61.3 MB（64,241,338 bytes）
-- SHA256：`115EF1B6D85B676A3A110D4CFEC7718A8080F0DF4DC250A9B83EB2DB3DEE12CF`
+- 61.7 MB（64,687,854 bytes）
+- SHA256：`C7DE616E29BC8781EA854C9902C3192DE5B888C4BED4E29FC303185774DEFF56`
 
 > 本地图片选择使用 `file_picker` 的图片扩展名过滤，不额外引入 image_picker，避免不同 Android 版本相册权限与插件构建差异；只读取用户选择的本地图片，效果一致。
 
@@ -444,7 +452,7 @@ APK 信息：
 ## 11. 已验证
 
 - `flutter analyze`：0 issues
-- `flutter test`：28 个测试全部通过
+- `flutter test`：30 个测试全部通过
 - `flutter build apk --release`：通过
 - APK 包含 arm64-v8a / armeabi-v7a / x86_64 的 libisar.so
 - 模拟器安装启动、创建健身房、Isar 即时写入、导出到公共下载目录均已验证
@@ -455,6 +463,8 @@ APK 信息：
 - 已验证：点日期只选中、记录所选日期、先填部位再添加动作、动作变化折线图、统计按日容量、周/月/年视图
 - v2.0.0 已验证暗色铁册主题、方角钢线布局、无 FAB 的命令条、文字导航、碳黑启动页与新版图标（widget test + 模拟器）
 - v2.0.1 已验证底部导航整格热区与 72px 高度、训练日右侧 52px 勾选热区、常用添加按钮右对齐（模拟器 + analyze/test/build）
+- v2.1.0 已验证训练记录按日期 + 部位原文合并、同部位往期页、组表格“组”列显示组数、打赏页与签名校验入口（模拟器 + analyze/test/build）
+- 打赏页使用内置 `assets/donation_code.jpg`，不联网生成；启动时校验签名，签名不匹配时隐藏打赏入口，其他功能不受影响。
 - 应用名：健身记录；启动器图标：v2 炭黑 + 安全橙几何标识
 
 ---

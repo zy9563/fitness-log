@@ -3,15 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../core/date_x.dart';
 import '../../core/theme.dart';
-import '../../core/weight.dart';
 import '../../data/fitness_store.dart';
-import '../../data/models/gym.dart';
 import '../../data/models/training_entry.dart';
-import '../../data/models/training_set.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/ledger.dart';
 import '../training/day_training_page.dart';
 import 'exercise_progress_page.dart';
+import 'workout_group_card.dart';
+import 'workout_grouping.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -191,9 +190,9 @@ class _HistoryPageState extends State<HistoryPage> {
     });
   }
 
-  List<_HistoryRow> _filtered(FitnessStore store) {
+  List<TrainingEntry> _filtered(FitnessStore store) {
     final query = normalizeLookupName(_exerciseController.text);
-    final result = <_HistoryRow>[];
+    final result = <TrainingEntry>[];
     for (final entry in store.entries) {
       final gym = store.gymById(entry.gymId);
       if (gym == null) continue;
@@ -207,14 +206,12 @@ class _HistoryPageState extends State<HistoryPage> {
           !normalizeLookupName(entry.exerciseName).contains(query)) {
         continue;
       }
-      result.add(
-        _HistoryRow(entry: entry, gym: gym, sets: store.setsForEntry(entry.id)),
-      );
+      result.add(entry);
     }
     result.sort((a, b) {
-      final dateCompare = b.entry.date.compareTo(a.entry.date);
+      final dateCompare = b.date.compareTo(a.date);
       if (dateCompare != 0) return dateCompare;
-      return a.entry.sortOrder.compareTo(b.entry.sortOrder);
+      return a.sortOrder.compareTo(b.sortOrder);
     });
     return result;
   }
@@ -222,7 +219,8 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FitnessStore>();
-    final rows = _filtered(store);
+    final entries = _filtered(store);
+    final groups = groupWorkoutEntries(entries);
     final bodyParts = store.bodyPartSuggestions();
     final hasFilters =
         _range != null ||
@@ -238,7 +236,7 @@ class _HistoryPageState extends State<HistoryPage> {
           children: [
             LedgerPageHeader(
               title: '记录',
-              subtitle: '训练历史 · 共 ${rows.length} 个动作',
+              subtitle: '训练历史 · 共 ${entries.length} 个动作',
               trailing: TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -284,7 +282,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
                 const Spacer(),
                 Text(
-                  '${rows.length} 条',
+                  '${groups.length} 次',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: kSteel,
                     letterSpacing: 1,
@@ -294,7 +292,7 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
             const SizedBox(height: 8),
             const LedgerRule(),
-            if (rows.isEmpty)
+            if (groups.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 18),
                 child: EmptyState(
@@ -311,16 +309,17 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
               )
             else
-              for (final row in rows)
-                _HistoryLedgerRow(
-                  row: row,
-                  onTap: () {
+              for (final group in groups)
+                WorkoutGroupCard(
+                  group: group,
+                  store: store,
+                  onTapEntry: (entry) {
                     Navigator.push(
                       context,
                       MaterialPageRoute<void>(
                         builder: (_) => DayTrainingPage(
-                          date: row.entry.date,
-                          initialGymId: row.entry.gymId,
+                          date: entry.date,
+                          initialGymId: entry.gymId,
                         ),
                       ),
                     );
@@ -520,141 +519,6 @@ class _FilterRow extends StatelessWidget {
                 fontSize: 18,
                 color: kSteel,
                 fontWeight: FontWeight.w300,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HistoryRow {
-  const _HistoryRow({
-    required this.entry,
-    required this.gym,
-    required this.sets,
-  });
-
-  final TrainingEntry entry;
-  final Gym gym;
-  final List<TrainingSet> sets;
-}
-
-class _HistoryLedgerRow extends StatelessWidget {
-  const _HistoryLedgerRow({required this.row, required this.onTap});
-
-  final _HistoryRow row;
-  final VoidCallback onTap;
-
-  String _two(int value) => value.toString().padLeft(2, '0');
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final setList = row.sets;
-    final totalGroups = setList.fold<int>(
-      0,
-      (sum, set) => sum + set.groupCount,
-    );
-    final setSummary = setList
-        .map(
-          (set) =>
-              '${set.groupCount}×${set.reps} '
-              '${formatWeightValue(set.weightValue, WeightUnit.fromIndex(set.weightUnitIndex), raw: set.weightRaw)}',
-        )
-        .join('   ');
-
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: kLineSoft)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 52,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${_two(row.entry.date.month)}.${_two(row.entry.date.day)}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: 18,
-                      color: kChalk,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    weekdayZh(row.entry.date),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: kSteel,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(width: 1, height: 44, color: kLine),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    row.entry.exerciseName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
-                      color: kChalk,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${row.gym.name} · ${row.entry.bodyPart} · $totalGroups 组',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
-                  ),
-                  if (setSummary.isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      setSummary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: kChalk.withAlpha(185),
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                  if (row.entry.note.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      row.entry.note.trim(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: kSteel,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Text(
-                '›',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: kSteel,
-                  fontWeight: FontWeight.w300,
-                ),
               ),
             ),
           ],

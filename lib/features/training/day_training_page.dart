@@ -13,6 +13,7 @@ import '../../data/models/training_set.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/ledger.dart';
 import '../gyms/gym_dialogs.dart';
+import '../history/body_part_history_page.dart';
 import 'exercise_form_dialog.dart';
 import 'set_form_dialog.dart';
 import 'widgets/body_part_field.dart';
@@ -574,6 +575,27 @@ class _DayTrainingPageState extends State<DayTrainingPage> {
     );
   }
 
+  void _openBodyPartHistory(String bodyPart) {
+    final navigator = Navigator.of(context);
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => BodyPartHistoryPage(
+          bodyPart: bodyPart,
+          onOpenEntry: (entry) {
+            navigator.push(
+              MaterialPageRoute(
+                builder: (_) => DayTrainingPage(
+                  date: entry.date,
+                  initialGymId: entry.gymId,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FitnessStore>();
@@ -581,7 +603,8 @@ class _DayTrainingPageState extends State<DayTrainingPage> {
     final entries = gym == null
         ? const <TrainingEntry>[]
         : store.entriesForDateGym(widget.date, gym.id);
-    final bodyPartEmpty = _bodyPartController.text.trim().isEmpty;
+    final bodyPart = _bodyPartController.text.trim();
+    final bodyPartEmpty = bodyPart.isEmpty;
     final totalGroups = entries.fold<int>(
       0,
       (sum, entry) => sum + store.totalGroupCountForEntry(entry.id),
@@ -617,11 +640,22 @@ class _DayTrainingPageState extends State<DayTrainingPage> {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    gym == null ? '待选健身房' : '本地记录',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: gym == null ? kSteel : kSafetyOrange,
-                      letterSpacing: 1.2,
+                  InkWell(
+                    onTap: bodyPartEmpty
+                        ? null
+                        : () => _openBodyPartHistory(bodyPart),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        '本地记录',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: bodyPartEmpty ? kSteel : kSafetyOrange,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1145,7 +1179,7 @@ class _SetLedgerRow extends StatelessWidget {
             SizedBox(
               width: 32,
               child: Text(
-                '${set.groupIndex}'.padLeft(2, '0'),
+                '${set.groupCount}',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: kSteel,
                   fontFeatures: const [FontFeature.tabularFigures()],

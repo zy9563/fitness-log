@@ -1,7 +1,7 @@
 name: fitness_log
 description: 健身记录 - 纯离线当天训练记录 App
 publish_to: "none"
-version: 2.0.1+12
+version: 2.1.0+13
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
@@ -45,6 +45,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/fonts/OFL.txt
+    - assets/donation_code.jpg
   fonts:
     - family: NotoSerifSC
       fonts:

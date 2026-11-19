@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_security.dart';
 import '../../core/date_x.dart';
 import '../../core/theme.dart';
 import '../../data/fitness_store.dart';
@@ -9,6 +10,7 @@ import '../../widgets/app_widgets.dart';
 import '../../widgets/ledger.dart';
 import '../backup/export_page.dart';
 import '../backup/import_page.dart';
+import '../donate/donation_page.dart';
 import '../gyms/gym_list_page.dart';
 
 class MorePage extends StatelessWidget {
@@ -30,7 +32,7 @@ class MorePage extends StatelessWidget {
               title: '我的',
               subtitle: '本机档案 · 数据不出设备',
               trailing: Text(
-                'v2.0.1',
+                'v2.1.0',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: kSteel,
                   letterSpacing: 1.5,
@@ -147,7 +149,7 @@ class MorePage extends StatelessWidget {
                   Text(
                     '数据存储：Isar 本地数据库\n'
                     '导出格式：.xlsx（4 个工作表）\n'
-                    '版本：2.0.1 · build 12',
+                    '版本：2.1.0 · build 13',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: kSteel,
                       height: 1.7,
@@ -156,6 +158,41 @@ class MorePage extends StatelessWidget {
                 ],
               ),
             ),
+            if (AppSecurity.isOfficialBuild) ...[
+              const SizedBox(height: 24),
+              const SectionTitle('支持', subtitle: '如果它帮你坚持记录'),
+              const SizedBox(height: 6),
+              const LedgerRule(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    foregroundColor: kSafetyOrange,
+                    side: const BorderSide(color: kSafetyOrange),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const DonationPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('打赏投喂  →'),
+                ),
+              ),
+              Text(
+                '赞赏码由开发者本人提供，仅用于支持独立开发。',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: kSteel,
+                  height: 1.6,
+                ),
+              ),
+            ],
           ],
         ),
       ),
