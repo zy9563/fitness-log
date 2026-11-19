@@ -207,6 +207,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 _EntryRow(
                   entry: entry,
                   gymName: store.gymById(entry.gymId)?.name ?? '',
+                  presetNote: store.presetForEntry(entry)?.note.trim() ?? '',
                   sets: store.setsForEntry(entry.id),
                   onTap: () => _openDay(_selectedDay),
                 ),
@@ -474,18 +475,22 @@ class _EntryRow extends StatelessWidget {
   const _EntryRow({
     required this.entry,
     required this.gymName,
+    required this.presetNote,
     required this.sets,
     required this.onTap,
   });
 
   final TrainingEntry entry;
   final String gymName;
+  final String presetNote;
   final List<TrainingSet> sets;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final groupCount = sets.fold<int>(0, (sum, set) => sum + set.groupCount);
+    final planNote = entry.note.trim();
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -501,25 +506,62 @@ class _EntryRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    entry.exerciseName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          entry.exerciseName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (planNote.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '[$planNote]',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: kChalk.withAlpha(200),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 3),
                   Text(
                     '$gymName · ${entry.bodyPart} · $groupCount 组',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: kSteel),
+                    style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
                   ),
                 ],
               ),
             ),
+            if (presetNote.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
+                child: Text(
+                  presetNote,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: kSteel,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
             Text(
               entry.completed ? '✓' : '›',

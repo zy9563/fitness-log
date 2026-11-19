@@ -98,6 +98,7 @@ class WorkoutGroupCard extends StatelessWidget {
             _WorkoutActionRow(
               entry: entry,
               sets: store.setsForEntry(entry.id),
+              presetNote: store.presetForEntry(entry)?.note.trim() ?? '',
               onTap: () => onTapEntry(entry),
             ),
         ],
@@ -110,17 +111,19 @@ class _WorkoutActionRow extends StatelessWidget {
   const _WorkoutActionRow({
     required this.entry,
     required this.sets,
+    required this.presetNote,
     required this.onTap,
   });
 
   final TrainingEntry entry;
   final List<TrainingSet> sets;
+  final String presetNote;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final note = entry.note.trim();
+    final planNote = entry.note.trim();
 
     return InkWell(
       onTap: onTap,
@@ -136,27 +139,48 @@ class _WorkoutActionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  flex: 3,
-                  child: Text(
-                    entry.exerciseName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontSize: 15,
-                      color: kChalk,
-                    ),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          entry.exerciseName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontSize: 15,
+                            color: kChalk,
+                          ),
+                        ),
+                      ),
+                      if (planNote.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '[$planNote]',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: kChalk.withAlpha(200),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (note.isNotEmpty) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
+                if (presetNote.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 120),
                     child: Text(
-                      note,
+                      presetNote,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: kSteel,
-                        height: 1.35,
+                        height: 1.4,
                       ),
                     ),
                   ),

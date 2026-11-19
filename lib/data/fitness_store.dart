@@ -158,6 +158,18 @@ class FitnessStore extends ChangeNotifier {
   List<ExercisePreset> presetsForGym(int gymId) =>
       _presets.where((preset) => preset.gymId == gymId).toList();
 
+  /// 查找动作条目对应的预设，用于展示预设备注。
+  ExercisePreset? presetForEntry(TrainingEntry entry) {
+    final key = normalizeLookupName(entry.exerciseName);
+    for (final preset in _presets) {
+      if (preset.gymId == entry.gymId &&
+          normalizeLookupName(preset.name) == key) {
+        return preset;
+      }
+    }
+    return null;
+  }
+
   /// 按固定分组顺序返回该健身房的全部预设，空组也会保留。
   Map<String, List<ExercisePreset>> groupedPresetsForGym(int gymId) {
     final result = <String, List<ExercisePreset>>{
