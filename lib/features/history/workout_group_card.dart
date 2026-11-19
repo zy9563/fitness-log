@@ -120,13 +120,6 @@ class _WorkoutActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final summary = sets
-        .map(
-          (set) =>
-              '${set.groupCount}×${set.reps} '
-              '${formatWeightValue(set.weightValue, WeightUnit.fromIndex(set.weightUnitIndex), raw: set.weightRaw)}',
-        )
-        .join('   ');
     final note = entry.note.trim();
 
     return InkWell(
@@ -136,63 +129,103 @@ class _WorkoutActionRow extends StatelessWidget {
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: kLineSoft)),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
                     entry.exerciseName,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontSize: 15,
                       color: kChalk,
                     ),
                   ),
-                  if (note.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
+                ),
+                if (note.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
                       note,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: kSteel,
-                        fontStyle: FontStyle.italic,
                         height: 1.35,
                       ),
                     ),
-                  ],
-                  if (summary.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      summary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: kChalk.withAlpha(180),
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Padding(
-              padding: EdgeInsets.only(top: 2),
-              child: Text(
-                '›',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: kSteel,
-                  fontWeight: FontWeight.w300,
+                const SizedBox(width: 8),
+                const Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Text(
+                    '›',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: kSteel,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
+            if (sets.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final set in sets)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _setSummary(set),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: kChalk.withAlpha(180),
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                      if (set.note.trim().isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            set.note.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: kSteel,
+                              fontStyle: FontStyle.italic,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _setSummary(TrainingSet set) {
+    final weight = formatWeightValue(
+      set.weightValue,
+      WeightUnit.fromIndex(set.weightUnitIndex),
+      raw: set.weightRaw,
+    );
+    return '${set.groupCount}×${set.reps} $weight'.trim();
   }
 }

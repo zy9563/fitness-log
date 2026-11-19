@@ -1094,8 +1094,9 @@ class _EntryLedger extends StatelessWidget {
             )
           else ...[
             const _SetHeader(),
-            for (final set in sets)
+            for (final (i, set) in sets.indexed)
               _SetLedgerRow(
+                index: i + 1,
                 set: set,
                 onEdit: () => onEditSet(set),
                 onDelete: () => onDeleteSet(set),
@@ -1133,10 +1134,14 @@ class _SetHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SizedBox(width: 32, child: Text('组', style: style)),
+          SizedBox(width: 24, child: Text('行', style: style)),
+          const SizedBox(width: 8),
+          SizedBox(width: 24, child: Text('组', style: style)),
+          const SizedBox(width: 8),
           Expanded(child: Text('重量', style: style)),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 48,
+            width: 40,
             child: Text('次数', style: style, textAlign: TextAlign.right),
           ),
           const SizedBox(width: 36),
@@ -1148,11 +1153,13 @@ class _SetHeader extends StatelessWidget {
 
 class _SetLedgerRow extends StatelessWidget {
   const _SetLedgerRow({
+    required this.index,
     required this.set,
     required this.onEdit,
     required this.onDelete,
   });
 
+  final int index;
   final TrainingSet set;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1177,15 +1184,27 @@ class _SetLedgerRow extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
-              width: 32,
+              width: 24,
               child: Text(
-                '${set.groupCount}',
+                index.toString().padLeft(2, '0'),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: kSteel,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 24,
+              child: Text(
+                '${set.groupCount}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: kChalk,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 weightText,
@@ -1195,8 +1214,9 @@ class _SetLedgerRow extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 8),
             SizedBox(
-              width: 48,
+              width: 40,
               child: Text(
                 '${set.reps}',
                 textAlign: TextAlign.right,

@@ -160,8 +160,8 @@ class _ExerciseFormDialogState extends State<ExerciseFormDialog> {
               maxLines: 2,
               maxLength: 300,
               decoration: const InputDecoration(
-                labelText: '动作备注 / 感受（可选）',
-                hintText: '例如：肩胛收紧、状态不错',
+                labelText: '动作备注',
+                hintText: '例如：窄距对握、反手、正手',
                 alignLabelWithHint: true,
                 counterText: '',
               ),
