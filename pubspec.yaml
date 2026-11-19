@@ -1,7 +1,7 @@
 name: fitness_log
-description: 鍋ヨ韩璁板綍 - 绾绾垮綋澶╄缁冭褰?App
+description: 健身记录 - 纯离线当天训练记录 App
 publish_to: "none"
-version: 2.0.0+11
+version: 2.0.1+12
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
@@ -15,7 +15,8 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # 鏈湴鏁版嵁搴擄細Isar 绀惧尯缁存姢鐗堬紙Isar 3 API锛?  isar_community: 3.4.1
+  # 本地数据库：Isar 社区维护版（Isar 3 API）
+  isar_community: 3.4.1
   isar_community_flutter_libs: 3.4.1
 
   provider: ^6.1.2

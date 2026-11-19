@@ -30,7 +30,7 @@ class MorePage extends StatelessWidget {
               title: '我的',
               subtitle: '本机档案 · 数据不出设备',
               trailing: Text(
-                'v2.0.0',
+                'v2.0.1',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: kSteel,
                   letterSpacing: 1.5,
@@ -147,7 +147,7 @@ class MorePage extends StatelessWidget {
                   Text(
                     '数据存储：Isar 本地数据库\n'
                     '导出格式：.xlsx（4 个工作表）\n'
-                    '版本：2.0.0 · build 11',
+                    '版本：2.0.1 · build 12',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: kSteel,
                       height: 1.7,

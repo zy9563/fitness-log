@@ -96,11 +96,13 @@ class LedgerCheck extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.size = 24,
+    this.hitSize,
   });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
   final double size;
+  final double? hitSize;
 
   @override
   Widget build(BuildContext context) {
@@ -111,30 +113,36 @@ class LedgerCheck extends StatelessWidget {
       label: value ? '已完成' : '未完成',
       child: InkWell(
         onTap: enabled ? () => onChanged!(!value) : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: value ? kSafetyOrange : Colors.transparent,
-            border: Border.all(
-              color: value ? kSafetyOrange : (enabled ? kSteel : kLine),
-              width: 1.2,
+        child: SizedBox(
+          width: hitSize ?? size,
+          height: hitSize ?? size,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: value ? kSafetyOrange : Colors.transparent,
+                border: Border.all(
+                  color: value ? kSafetyOrange : (enabled ? kSteel : kLine),
+                  width: 1.2,
+                ),
+              ),
+              child: value
+                  ? const Center(
+                      child: Text(
+                        '✓',
+                        style: TextStyle(
+                          color: kInk,
+                          fontSize: 16,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  : null,
             ),
           ),
-          child: value
-              ? const Center(
-                  child: Text(
-                    '✓',
-                    style: TextStyle(
-                      color: kInk,
-                      fontSize: 16,
-                      height: 1,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              : null,
         ),
       ),
     );

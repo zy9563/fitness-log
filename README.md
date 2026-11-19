@@ -231,7 +231,8 @@ fitness_log/
 
 ### 4.6 底部导航
 
-- 全宽 58px 文字条：`日历 / 记录 / 统计 / 我的`，无图标。
+- 全宽 72px 文字条：`日历 / 记录 / 统计 / 我的`，无图标。
+- 整格均为点击热区，文字放大到 15px 并整体下移，减少单手误触。
 - 顶部 1px 钢线，背景 `kInk`，不使用模糊或半透明。
 - 选中项为暖白文字 + 2px 安全橙下划线；未选中为钢灰。
 - 页面不再 `extendBody`，内容不会从导航栏后方穿过。
@@ -242,12 +243,19 @@ fitness_log/
 - `lib/widgets/ledger.dart`：
   - `LedgerPageHeader`：衬线大标题 + 可选副标题/尾部操作；
   - `LedgerBackButton`：文本箭头 `←`，不引入 Material 返回图标；
-  - `LedgerCheck`：方形自绘勾选，选中为橙底黑勾；
+  - `LedgerCheck`：方形自绘勾选，选中为橙底黑勾；`size` 控制视觉尺寸，`hitSize` 可扩大热区；
   - `LedgerArrow`：方角左右翻页，支持短按、长按开始/结束/取消；
   - `LedgerRule` / `LedgerStatusLine`：1px 钢线与状态竖条；
   - `LedgerDialog`：碳黑方角弹窗，顶部 2px 橙线，内容可滚动。
 - `AppSectionCard` 只作为兼容壳保留，视觉上已是无圆角、无阴影的钢线分区。
 - `EdgeFadeListView` 不再用于主要页面，保留文件仅供旧测试/兼容引用。
+
+### 4.7.1 右手指向操作
+
+- 训练日动作勾选移到卡片右侧，视觉 32px、可点击热区 52px。
+- `+ 添加一组`、`+ 继续添加动作`、`+ 添加动作` 统一右对齐。
+- 底部命令条：`结束今日训练` / `查看训练总结` 在左侧，`+ 添加动作` 固定在右侧。
+- 动作菜单 `···` 位于勾选左侧，避免和勾选热区争夺最右侧空间。
 
 ### 4.8 数据维护
 
@@ -407,8 +415,7 @@ flutter create --platforms=android --org com.example --project-name fitness_log 
 
 - 卸载 App 会删除全部数据；
 - 覆盖模式无法撤销，不确定时先导出当前数据作第二份备份；
-- 图片背景不会进入 Excel 备份（属于主题设置），换机后需重新选择本地图片；
-- 主题颜色也不进入 Excel 备份。
+- 图片背景与主题颜色不再属于可配置项；App 固定暗色，无主题数据需要迁移。
 
 ---
 
@@ -416,19 +423,19 @@ flutter create --platforms=android --org com.example --project-name fitness_log 
 
 ```text
 dist/
-├─ 健身记录_v2.0.0.apk       # release 包，可直接侧载
+├─ 健身记录_v2.0.1.apk       # release 包，可直接侧载
 ├─ fitness_log_source.zip    # 完整源码（含 Android 工程、生成文件、图标、字体）
-└─ SHA256SUMS_v2.0.0.txt     # 校验值
+└─ SHA256SUMS_v2.0.1.txt     # 校验值
 ```
 
 APK 信息：
 
-- 版本：2.0.0（versionCode 11）
+- 版本：2.0.1（versionCode 12）
 - 包名：`com.example.fitness_log`
 - 应用名：健身记录
 - 签名：debug 签名（个人自用；发布前请换签名）
 - 61.3 MB（64,241,338 bytes）
-- SHA256：`F215CC73BDEF77CE3A08286CD4B1BF060A4974115823F4EF82861B734577A318`
+- SHA256：`115EF1B6D85B676A3A110D4CFEC7718A8080F0DF4DC250A9B83EB2DB3DEE12CF`
 
 > 本地图片选择使用 `file_picker` 的图片扩展名过滤，不额外引入 image_picker，避免不同 Android 版本相册权限与插件构建差异；只读取用户选择的本地图片，效果一致。
 
@@ -447,6 +454,7 @@ APK 信息：
 - 已验证按日期范围批量删除历史计划（含今天时会有提醒）、清理缓存不影响训练数据，以及统计箭头长按连续渐快翻页（模拟器 + 缓存单元测试）
 - 已验证：点日期只选中、记录所选日期、先填部位再添加动作、动作变化折线图、统计按日容量、周/月/年视图
 - v2.0.0 已验证暗色铁册主题、方角钢线布局、无 FAB 的命令条、文字导航、碳黑启动页与新版图标（widget test + 模拟器）
+- v2.0.1 已验证底部导航整格热区与 72px 高度、训练日右侧 52px 勾选热区、常用添加按钮右对齐（模拟器 + analyze/test/build）
 - 应用名：健身记录；启动器图标：v2 炭黑 + 安全橙几何标识
 
 ---

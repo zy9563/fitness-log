@@ -59,8 +59,9 @@ class _BottomWordBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 58,
+          height: 72,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var i = 0; i < _labels.length; i++)
                 Expanded(
@@ -100,19 +101,22 @@ class _WordItem extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? kChalk : kSteel,
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: 2.2,
+            Transform.translate(
+              offset: const Offset(0, 6),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? kChalk : kSteel,
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  letterSpacing: 1.4,
+                ),
               ),
             ),
             Positioned(
               left: 18,
               right: 18,
-              bottom: 0,
+              bottom: 14,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
                 height: 2,

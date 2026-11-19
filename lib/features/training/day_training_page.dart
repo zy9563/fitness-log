@@ -746,8 +746,14 @@ class _DayTrainingPageState extends State<DayTrainingPage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Align(
-                          alignment: Alignment.centerLeft,
+                          alignment: Alignment.centerRight,
                           child: TextButton(
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(148, 46),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                            ),
                             onPressed: _addExercise,
                             child: const Text('+ 继续添加动作'),
                           ),
@@ -916,7 +922,13 @@ class _LedgerEmpty extends StatelessWidget {
           ),
           if (actionLabel != null) ...[
             const SizedBox(height: 12),
-            OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: onAction,
+                child: Text(actionLabel!),
+              ),
+            ),
           ],
         ],
       ),
@@ -959,15 +971,6 @@ class _EntryLedger extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: LedgerCheck(
-                  value: entry.completed,
-                  onChanged: onToggle,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1012,7 +1015,7 @@ class _EntryLedger extends StatelessWidget {
                 ],
                 child: const SizedBox(
                   width: 38,
-                  height: 38,
+                  height: 48,
                   child: Center(
                     child: Text(
                       '···',
@@ -1026,11 +1029,18 @@ class _EntryLedger extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 4),
+              LedgerCheck(
+                value: entry.completed,
+                onChanged: onToggle,
+                size: 32,
+                hitSize: 52,
+              ),
             ],
           ),
           if (entry.note.trim().isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(left: 34, top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
                 entry.note.trim(),
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -1042,30 +1052,31 @@ class _EntryLedger extends StatelessWidget {
           const SizedBox(height: 12),
           if (sets.isEmpty)
             Padding(
-              padding: const EdgeInsets.only(left: 34, bottom: 4),
+              padding: const EdgeInsets.only(bottom: 4),
               child: Text(
                 '还没有组记录。',
                 style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
               ),
             )
           else ...[
-            const Padding(
-              padding: EdgeInsets.only(left: 34),
-              child: _SetHeader(),
-            ),
+            const _SetHeader(),
             for (final set in sets)
-              Padding(
-                padding: const EdgeInsets.only(left: 34),
-                child: _SetLedgerRow(
-                  set: set,
-                  onEdit: () => onEditSet(set),
-                  onDelete: () => onDeleteSet(set),
-                ),
+              _SetLedgerRow(
+                set: set,
+                onEdit: () => onEditSet(set),
+                onDelete: () => onDeleteSet(set),
               ),
           ],
-          Padding(
-            padding: const EdgeInsets.only(left: 30),
-            child: TextButton(onPressed: onAddSet, child: const Text('+ 添加一组')),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                minimumSize: const Size(112, 46),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              onPressed: onAddSet,
+              child: const Text('+ 添加一组'),
+            ),
           ),
         ],
       ),
@@ -1205,26 +1216,29 @@ class _CommandBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    Widget leading;
+    final canAdd = gymSelected && !bodyPartEmpty;
+
+    Widget left;
     if (!gymSelected) {
-      leading = Expanded(
-        child: OutlinedButton(
-          onPressed: onSelectGym,
-          child: const Text('选择健身房'),
-        ),
-      );
+      left = OutlinedButton(onPressed: onSelectGym, child: const Text('选择健身房'));
     } else if (bodyPartEmpty) {
-      leading = Expanded(
-        child: Text(
-          '填写训练部位后，才能添加动作。',
-          style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
-        ),
+      left = Text(
+        '填写训练部位后，才能添加动作。',
+        style: theme.textTheme.bodySmall?.copyWith(color: kSteel),
+      );
+    } else if (hasEntries && allCompleted) {
+      left = FilledButton(
+        style: FilledButton.styleFrom(minimumSize: const Size(172, 48)),
+        onPressed: onPrimary,
+        child: Text(sessionEnded ? '查看训练总结' : '结束今日训练'),
+      );
+    } else if (hasEntries) {
+      left = Text(
+        '勾选全部动作后结束',
+        style: theme.textTheme.labelSmall?.copyWith(color: kSteel),
       );
     } else {
-      leading = TextButton(
-        onPressed: onAddExercise,
-        child: const Text('+ 添加动作'),
-      );
+      left = const SizedBox.shrink();
     }
 
     return Container(
@@ -1237,20 +1251,18 @@ class _CommandBar extends StatelessWidget {
         top: false,
         child: Row(
           children: [
-            leading,
-            const Spacer(),
-            if (gymSelected && !bodyPartEmpty && hasEntries)
-              allCompleted
-                  ? FilledButton(
-                      onPressed: onPrimary,
-                      child: Text(sessionEnded ? '查看训练总结' : '结束今日训练'),
-                    )
-                  : Text(
-                      '勾选全部动作后结束',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: kSteel,
-                      ),
-                    ),
+            Expanded(
+              child: Align(alignment: Alignment.centerLeft, child: left),
+            ),
+            if (canAdd)
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(124, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                onPressed: onAddExercise,
+                child: const Text('+ 添加动作'),
+              ),
           ],
         ),
       ),
