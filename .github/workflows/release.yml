@@ -1,0 +1,37 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 健身记录 ${{ github.ref_name }}
+          body: |
+            健身记录 ${{ github.ref_name }} 正式发行。
+
+            - 训练记录按日期 + 部位合并，组明细独立成行
+            - 组表格“行 / 组”双列
+            - 计划动作备注与预设动作备注双备注布局
+            - 同部位往期训练页
+            - 完全离线，数据只在本机
+
+            APK 为直接安装包；源码与 SHA256 校验文件一并提供。
+          files: |
+            release/健身记录_v2.1.0.apk
+            release/fitness_log_source.zip
+            release/SHA256SUMS_v2.1.0.txt
+          fail_on_unmatched_files: true
+          make_latest: true
