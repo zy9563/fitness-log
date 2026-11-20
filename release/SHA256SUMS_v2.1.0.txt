@@ -1,2 +1,2 @@
-﻿da9de53bc86e3ba87ef70327d915d98bd22f3bec93f31b552b2fb24bd5f0af2b  fitness-log-v2.1.0.apk
+da9de53bc86e3ba87ef70327d915d98bd22f3bec93f31b552b2fb24bd5f0af2b  fitness-log-v2.1.0.apk
 eb379b566d60bf069539e798f373901201a05a9525d7a8da1102e9fdee342c36  fitness_log_source.zip
