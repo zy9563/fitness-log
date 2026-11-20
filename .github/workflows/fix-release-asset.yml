@@ -6,6 +6,7 @@ on:
       - release/v2.1.0
     paths:
       - '.github/workflows/fix-release-asset.yml'
+      - 'release/SHA256SUMS_v2.1.0.txt'
 
 permissions:
   contents: write
@@ -29,3 +30,4 @@ jobs:
           fi
           cp "release/健身记录_v2.1.0.apk" /tmp/fitness-log-v2.1.0.apk
           gh release upload v2.1.0 /tmp/fitness-log-v2.1.0.apk --clobber
+          gh release upload v2.1.0 release/SHA256SUMS_v2.1.0.txt --clobber
