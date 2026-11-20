@@ -1,0 +1,31 @@
+name: Normalize release asset name
+
+on:
+  push:
+    branches:
+      - release/v2.1.0
+    paths:
+      - '.github/workflows/fix-release-asset.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Re-upload APK with ASCII filename
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v2.1.0" --jq .id)
+          asset_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets" --jq '.[] | select(.name == "_v2.1.0.apk") | .id')
+          if [ -n "${asset_id}" ]; then
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+          fi
+          cp "release/健身记录_v2.1.0.apk" /tmp/fitness-log-v2.1.0.apk
+          gh release upload v2.1.0 /tmp/fitness-log-v2.1.0.apk --clobber
